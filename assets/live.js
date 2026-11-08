@@ -70,6 +70,10 @@
         const id=u.pathname.match(/(?:\/video)?\/(\d+)/)?.[1];
         return id ? `https://player.vimeo.com/video/${id}` : '';
       }
+      if(host==='drive.google.com' || host==='www.drive.google.com') {
+        const id=u.pathname.match(/\/file\/d\/([A-Za-z0-9_-]{15,})/)?.[1] || u.searchParams.get('id');
+        return /^[A-Za-z0-9_-]{15,}$/.test(id||'') ? `https://drive.google.com/file/d/${id}/preview` : '';
+      }
     } catch (_) {}
     return '';
   };
@@ -137,9 +141,13 @@
     }
     if (type==='academic-detail') {
       const x=academics.find(v=>v.slug===slug);if(!x) return renderNotFound(main);
-      const pdf=pdfLink(x.pdf);const doc=pdf.embed?`<div class="pdf-viewport"><iframe title="${esc(x.title)} — full project PDF" src="${esc(pdf.embed)}" loading="lazy" referrerpolicy="no-referrer"></iframe></div>`:`<div class="pdf-empty">${icon('file')}<strong>Full project coming soon</strong><p>The PDF will appear here once it's been added to the portfolio.</p></div>`;
-      const actions=pdf.embed?`<a href="${esc(pdf.open)}" target="_blank" rel="noopener noreferrer">Open document ↗</a><button type="button" data-live-pdf-fullscreen>Fullscreen</button>`:'';
-      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover,x)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document</span></div><div class="pdf-actions">${actions}</div></div>${doc}</section>`+back('All academic projects','work/academic/'));
+      const documentRecords=Array.isArray(x.pdfs)?x.pdfs:(x.pdf?[{title:'Project document',url:x.pdf}]:[]);
+      const documents=documentRecords.map((d,i)=>({title:String(d.title||`Document ${i+1}`),link:pdfLink(d.url||d.src||'')})).filter(d=>d.link.embed);
+      const first=documents[0];
+      const chooser=documents.length>1?`<div class="pdf-switcher" aria-label="Choose a project document">${documents.map((d,i)=>`<button type="button" class="pdf-switch ${i===0?'active':''}" data-live-pdf-select data-pdf-embed="${esc(d.link.embed)}" data-pdf-open="${esc(d.link.open)}" data-pdf-title="${esc(d.title)}" aria-pressed="${i===0}">${esc(d.title)}</button>`).join('')}</div>`:'';
+      const doc=first?`<div class="pdf-viewport"><iframe data-live-pdf-frame title="${esc(x.title)} — ${esc(first.title)}" src="${esc(first.link.embed)}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`:`<div class="pdf-empty">${icon('file')}<strong>Full project coming soon</strong><p>The PDFs will appear here once they're added to the portfolio.</p></div>`;
+      const actions=first?`<a data-live-pdf-open href="${esc(first.link.open)}" target="_blank" rel="noopener noreferrer">Open document ↗</a><button type="button" data-live-pdf-fullscreen>Fullscreen</button>`:'';
+      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover,x)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document${documents.length>1?'s':''}</span></div><div class="pdf-actions">${actions}</div></div>${chooser}${doc}</section>`+back('All academic projects','work/academic/'));
       document.title=x.title+' — Amit Dahan Mayo';
     }
     if (type==='professional') {
@@ -161,7 +169,8 @@
       document.title=ep.title+' — Amit Dahan Mayo';
     }
     if(type==='creative-explorations') {
-      markup=wrap(crumb([['Work','work/'],['Creative Explorations',null]])+intro('03 / Creative Explorations','Less talking. <em>More looking.</em>','An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',true)+listHead('Browse the sets',`${String(sets.length).padStart(2,'0')} sets`)+`<div class="tile-grid">${sets.map((x,i)=>card(x,urlCreative(x),`${String(i+1).padStart(2,'0')} / ${String(sets.length).padStart(2,'0')}`).replace('<a class="visual-card','<a data-live-open-set="'+esc(x.slug)+'" class="visual-card')).join('')}</div>`+back('Back to Work','work/'));
+      const visibleCover=set=>set.cover || (set.media||[]).find(m=>m.type!=='video'&&m.src)?.src || (set.media||[]).find(m=>m.thumbnail)?.thumbnail || '';
+      markup=wrap(crumb([['Work','work/'],['Creative Explorations',null]])+intro('03 / Creative Explorations','Less talking. <em>More looking.</em>','An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',true)+listHead('Browse the sets',`${String(sets.length).padStart(2,'0')} sets`)+`<div class="tile-grid">${sets.map((x,i)=>card({...x,cover:visibleCover(x)},urlCreative(x),`${String(i+1).padStart(2,'0')} / ${String(sets.length).padStart(2,'0')}`).replace('<a class="visual-card','<a data-live-open-set="'+esc(x.slug)+'" class="visual-card')).join('')}</div>`+back('Back to Work','work/'));
     }
     if(type==='creative-detail') {
       const set=sets.find(x=>x.slug===slug);if(!set)return renderNotFound(main);
@@ -225,16 +234,27 @@
         btn.onclick=()=>{viewerIndex=i;viewerMode='slide';drawViewer();};tiles.append(btn);
       });stage.append(tiles);viewer.querySelector('.lightbox-bottom').textContent='Select an image or video';return;
     }
-    const item=viewerItems[viewerIndex],node=item.kind==='image'?document.createElement('img'):(/youtube-nocookie\.com\/embed|player\.vimeo\.com\/video/.test(item.src)?document.createElement('iframe'):document.createElement('video'));
+    const item=viewerItems[viewerIndex],node=item.kind==='image'?document.createElement('img'):(/youtube-nocookie\.com\/embed|player\.vimeo\.com\/video|drive\.google\.com\/file\/d\/.+\/preview/.test(item.src)?document.createElement('iframe'):document.createElement('video'));
     node.className=item.kind==='image'?'lightbox-media':'lightbox-video';
     if(node.tagName==='IMG')node.alt=item.title;
     if(node.tagName==='IFRAME'){node.title=item.title;node.allow='autoplay; encrypted-media; picture-in-picture';node.allowFullscreen=true;}
     if(node.tagName==='VIDEO'){node.controls=true;node.playsInline=true;}
-    node.src=item.src;stage.append(node);viewer.querySelector('.lightbox-bottom').textContent=item.title;
+    node.src=item.src;stage.append(node);
+    const caption=viewer.querySelector('.lightbox-bottom');caption.replaceChildren(document.createTextNode(item.title));
+    if(node.tagName==='IFRAME' && item.src.startsWith('https://drive.google.com/')) {
+      const link=document.createElement('a');link.href=item.src.replace(/\/preview(?:[?#].*)?$/,'/view');link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open in Google Drive ↗';link.className='drive-fallback-link';caption.append(' · ',link);
+    }
   }
   function stepViewer(delta){if(viewerMode==='grid'||viewerItems.length<2)return;viewerIndex=(viewerIndex+delta+viewerItems.length)%viewerItems.length;drawViewer()}
   function closeViewer(){if(!viewer)return;viewer.classList.remove('open');viewer.querySelector('[data-c-stage]').replaceChildren();document.body.style.overflow='';restoreFocus?.focus?.();}
   document.addEventListener('click',event=>{
+    const pdfChoice=event.target.closest('[data-live-pdf-select]');
+    if(pdfChoice){
+      const block=pdfChoice.closest('.pdf-block');const iframe=block?.querySelector('[data-live-pdf-frame]');const open=block?.querySelector('[data-live-pdf-open]');
+      if(iframe){iframe.src=pdfChoice.dataset.pdfEmbed;iframe.title=pdfChoice.dataset.pdfTitle+' — PDF';}
+      if(open)open.href=pdfChoice.dataset.pdfOpen;
+      block?.querySelectorAll('[data-live-pdf-select]').forEach(b=>{const active=b===pdfChoice;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});return;
+    }
     const pdfButton=event.target.closest('[data-live-pdf-fullscreen]');
     if(pdfButton){const frame=pdfButton.closest('.pdf-block');if(frame?.requestFullscreen)frame.requestFullscreen().catch(()=>{});return;}
     const setLink=event.target.closest('[data-live-open-set]');

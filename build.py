@@ -190,15 +190,28 @@ def pdf_embed_link(path: str) -> tuple[str, str]:
 
 
 def pdf_viewer(info: dict) -> str:
-    pdf = info.get('pdf', '')
-    if not has_media(pdf):
-        content = f'''<div class="pdf-empty">{icon('file',43)}<strong>Full project coming soon</strong><p>The PDF will appear here once it's been added to the portfolio.</p></div>'''
-        actions = ""
+    records = info.get('pdfs') if isinstance(info.get('pdfs'), list) else ([{'title': 'Project document', 'url': info.get('pdf', '')}] if info.get('pdf') else [])
+    documents = []
+    for index, record in enumerate(records):
+        source = record.get('url', record.get('src', ''))
+        if not has_media(source):
+            continue
+        embed, raw = pdf_embed_link(source)
+        documents.append((record.get('title', f'Document {index + 1}'), embed, raw))
+    if documents:
+        title, embed, raw = documents[0]
+        content = f'<div class="pdf-viewport"><iframe data-live-pdf-frame title="{e(info["title"])} — {e(title)}" src="{e(embed)}" loading="lazy"></iframe></div>'
+        actions = f'<a data-live-pdf-open href="{e(raw)}" target="_blank" rel="noopener noreferrer">{icon("external")}<span class="label">Open PDF</span></a><button type="button" data-pdf-fullscreen aria-label="Fullscreen PDF">{icon("expand")}<span class="label">Fullscreen</span></button>'
+        chooser = ''
+        if len(documents) > 1:
+            chooser = '<div class="pdf-switcher" aria-label="Choose a project document">' + ''.join(
+                f'<button type="button" class="pdf-switch {"active" if n == 0 else ""}" data-live-pdf-select data-pdf-embed="{e(url)}" data-pdf-open="{e(download)}" data-pdf-title="{e(label)}" aria-pressed="{str(n == 0).lower()}">{e(label)}</button>'
+                for n, (label, url, download) in enumerate(documents)
+            ) + '</div>'
     else:
-        embed,raw=pdf_embed_link(pdf)
-        content = f'<div class="pdf-viewport"><iframe title="{e(info["title"])} — complete project PDF" src="{e(embed)}" loading="lazy"></iframe></div>'
-        actions = f'<a href="{e(raw)}" target="_blank" rel="noopener noreferrer" aria-label="Open PDF in new tab">{icon("external")}<span class="label">Open PDF</span></a><button type="button" data-pdf-fullscreen aria-label="Fullscreen PDF">{icon("expand")}<span class="label">Fullscreen</span></button>'
-    return f'''<section aria-label="Project PDF" class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">{icon('file')}<span>Project document</span></div><div class="pdf-actions">{actions}</div></div>{content}</section>'''
+        content = f'<div class="pdf-empty">{icon("file",43)}<strong>Full project coming soon</strong><p>PDFs will appear here once added to the portfolio.</p></div>'
+        actions = chooser = ''
+    return f'<section aria-label="Project PDF" class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">{icon("file")}<span>Project documents</span></div><div class="pdf-actions">{actions}</div></div>{chooser}{content}</section>'
 
 
 def academic_project(info: dict) -> None:
@@ -235,6 +248,11 @@ def episode_url(url: str) -> str:
         match = re.search(r"(?:/video)?/(\d+)", parsed.path)
         if match:
             return f"https://player.vimeo.com/video/{match.group(1)}"
+    if hostname in {"drive.google.com", "www.drive.google.com"}:
+        match = re.search(r"/file/d/([a-zA-Z0-9_-]{15,})", parsed.path)
+        identifier = match.group(1) if match else parse_qs(parsed.query).get('id', [''])[0]
+        if re.fullmatch(r"[a-zA-Z0-9_-]{15,}", identifier):
+            return f"https://drive.google.com/file/d/{identifier}/preview"
     return ""
 
 
@@ -270,7 +288,7 @@ def professional_episode(show: dict, ep: dict) -> None:
 
 def creative() -> None:
     collections = CONFIG['creative_collections']
-    cards = ''.join(card(coll,f"work/creative-explorations/{coll['slug']}/",f"{i:02d} / {len(collections):02d}").replace('class="visual-card','data-live-open-set="'+e(coll['slug'])+'" class="visual-card') for i,coll in enumerate(collections,1))
+    cards = ''.join(card({**coll, 'cover': coll.get('cover') or next((m.get('src') for m in coll.get('media',[]) if m.get('type') != 'video' and m.get('src')), '') or next((m.get('thumbnail') for m in coll.get('media',[]) if m.get('thumbnail')), '')},f"work/creative-explorations/{coll['slug']}/",f"{i:02d} / {len(collections):02d}").replace('class="visual-card','data-live-open-set="'+e(coll['slug'])+'" class="visual-card') for i,coll in enumerate(collections,1))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work','work/'),('Creative Explorations',None)])}
       {intro('03 / Creative Explorations', 'Less talking. <em>More looking.</em>', 'An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',smaller=True)}
       {list_head('Browse the sets',f'{len(collections):02d} sets')}<div class="tile-grid">{cards}</div>{back('Back to Work','work/')}</div>'''

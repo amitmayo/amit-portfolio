@@ -45,7 +45,7 @@
         heroBackground.classList.add('has-photo');
         try { localStorage.setItem('amit-portfolio-last-hero', selected.src); } catch (_) {}
       };
-      preload.src = selected;
+      preload.src = selected.src;
     }
     if (heroButton) {
       for (const eventName of ['mouseenter', 'focus', 'pointerdown']) {
@@ -159,7 +159,7 @@
       const title = item.dataset.caption || 'Visual work';
       mediaContainer.replaceChildren();
       if (kind === 'video') {
-        if (url.includes('youtube-nocookie.com/embed/') || url.includes('player.vimeo.com/video/')) {
+        if (url.includes('youtube-nocookie.com/embed/') || url.includes('player.vimeo.com/video/') || /drive\.google\.com\/file\/d\/.+\/preview/.test(url)) {
           const iframe = document.createElement('iframe');
           iframe.src = url;
           iframe.title = title;

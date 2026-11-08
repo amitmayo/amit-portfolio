@@ -15,9 +15,11 @@
   const status = $('#admin-status');
   let db=null, draft=null, section='home', focused=null, hasChanges=false;
   let lastSaved=null,previewTimer=null,autosaveTimer=null;
+  let suppressPreviewSync=false, pendingUploads=0, writeQueue=Promise.resolve(), isPublishing=false;
   const SEC={home:'Home',work:'Work',academic:'Academic',professional:'Professional',creative:'Creative',about:'About',contact:'Contact'};
   const defaultTone={academic:'clay',professional:'cobalt',creative:'rose'};
   const safeSlug = input => (String(input||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48) || 'item')+'-'+Math.random().toString(36).slice(2,6);
+  const nameFromFile=file=>String(file?.name||'Untitled').replace(/\.[^/.]+$/,'').replace(/[_-]+/g,' ').trim().slice(0,110)||'Untitled';
   const make = (tag, css='', text) => {const e=document.createElement(tag);if(css)e.className=css;if(text!==undefined)e.textContent=text;return e;};
   const heading = (text,description) => {fieldBox.append(make('h3','admin-field-heading',text));if(description)fieldBox.append(make('p','admin-field-help',description));};
   const button = (label,action,cls='') => {const el=make('button','admin-field-button '+cls,label);el.type='button';el.addEventListener('click',action);return el;};
@@ -40,11 +42,15 @@
     const ext= (file.name.split('.').pop()||'file').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,10);
     const unique=typeof crypto.randomUUID==='function'?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2);
     const filename=folder+'/'+unique+'.'+ext;
+    pendingUploads++;
     setStatus('Uploading '+file.name+'…','saving');
-    const {error}=await db.storage.from('portfolio-media').upload(filename,file,{contentType:file.type,upsert:false});
-    if(error)throw error;
-    const {data}=db.storage.from('portfolio-media').getPublicUrl(filename);
-    return data.publicUrl;
+    try {
+      const {error}=await db.storage.from('portfolio-media').upload(filename,file,{contentType:file.type,upsert:false});
+      if(error)throw error;
+      const {data}=db.storage.from('portfolio-media').getPublicUrl(filename);
+      if(!data?.publicUrl)throw new Error('Uploaded file has no public URL. Check the portfolio-media bucket.');
+      return data.publicUrl;
+    } finally {pendingUploads--;}
   }
   function cropControls(parent,obj,src,label,keys=['coverPositionX','coverPositionY','coverZoom']){
     if(!src)return;
@@ -94,11 +100,11 @@
     }
     block.append(box);
   }
-  function rowActions(parent,arr,index,rebuild){
+  function rowActions(parent,arr,index,rebuild,clearFocus=true){
     const actions=make('div','admin-inline-actions');
     actions.append(button('↑',()=>{if(index===0)return;[arr[index-1],arr[index]]=[arr[index],arr[index-1]];touch();rebuild();},'small'));
     actions.append(button('↓',()=>{if(index===arr.length-1)return;[arr[index+1],arr[index]]=[arr[index],arr[index+1]];touch();rebuild();},'small'));
-    actions.append(button('Remove',()=>{if(!confirm('Remove this item from the portfolio?'))return;arr.splice(index,1);focused=null;touch();rebuild();},'small danger'));
+    actions.append(button('Remove',()=>{if(!confirm('Remove this item from the portfolio?'))return;arr.splice(index,1);if(clearFocus)focused=null;else if(focused){delete focused.episode;delete focused.media;}touch();rebuild();},'small danger'));
     return actions;
   }
   function heroImages(){
@@ -144,13 +150,25 @@
     return path('work/creative-explorations/set/?id='+encodeURIComponent(item.slug));
   }
   function editAcademic(item){
-    heading('Academic project','The cover, short introduction and complete PDF shown on this project page.');
+    heading('Academic project','Cover, short introduction, and your project documents. Visitors can switch between PDFs in one clean viewer.');
     textField(fieldBox,item,'title','Project title');
     textField(fieldBox,item,'subtitle','Subtitle / academic year');
     textField(fieldBox,item,'description','Short description',true);
     mediaField(fieldBox,item,'cover','Project cover image','image','academic');
-    mediaField(fieldBox,item,'pdf','Complete PDF document','pdf','academic');
-    fieldBox.append(make('p','admin-field-help','Large PDFs can be hosted externally. Paste a public HTTPS link instead of uploading.'));
+    // Migrate a previously published single PDF in memory; existing public records remain valid.
+    if(!Array.isArray(item.pdfs))item.pdfs=item.pdf?[{title:'Project document',url:item.pdf}]:[];
+    const docs=item.pdfs;
+    heading('Project PDF documents','Add as many separate PDFs as needed. Only one viewer loads at a time, so very large documents remain practical.');
+    docs.forEach((document,index)=>{
+      const container=make('div','admin-pdf-item');
+      const head=make('div','admin-document-heading');head.append(make('strong','',`PDF ${index+1}`));
+      head.append(rowActions(container,docs,index,renderFields,false));container.append(head);
+      textField(container,document,'title','Document name',false,`Document ${index+1}`);
+      mediaField(container,document,'url','PDF file or public URL','pdf','academic');
+      fieldBox.append(container);
+    });
+    fieldBox.append(button('＋ Add another PDF',()=>{docs.push({title:`Document ${docs.length+1}`,url:''});touch();renderFields();},'admin-add'));
+    fieldBox.append(make('p','admin-field-help','Large PDFs: paste a public Google Drive file link (Viewer access) or another HTTPS PDF address. The free Supabase upload limit is 50 MB per file.'));
   }
   function addEpisode(show,index){
     const eps=show.episodes||(show.episodes=[]);
@@ -170,7 +188,7 @@
     const eps=item.episodes|| (item.episodes=[]);const list=make('div','admin-list');fieldBox.append(list);
     eps.forEach((episode,index)=>{
       const line=make('div','admin-list-row');const edit=button(episode.title||'Untitled episode',()=>{focused.episode=index;renderFields();navigatePreview(path('work/professional/episode/?show='+encodeURIComponent(item.slug)+'&id='+encodeURIComponent(episode.slug)));},'admin-list-edit');
-      line.append(edit,rowActions(line,eps,index,renderFields));list.append(line);
+      line.append(edit,rowActions(line,eps,index,renderFields,false));list.append(line);
     });
     fieldBox.append(button('＋ Add episode to '+item.title,()=>addEpisode(item,focused.index),'admin-add'));
   }
@@ -179,8 +197,8 @@
     textField(fieldBox,ep,'title','Episode title');textField(fieldBox,ep,'subtitle','Subtitle');
     textField(fieldBox,ep,'description','Optional short description',true);
     mediaField(fieldBox,ep,'cover','Episode card image','image','professional');
-    textField(fieldBox,ep,'video_url','YouTube / Vimeo URL',false,'https://www.youtube.com/watch?v=…');
-    fieldBox.append(make('p','admin-field-help','The video must allow embedding. Use its public URL, not iframe HTML.'));
+    textField(fieldBox,ep,'video_url','YouTube / Vimeo / Google Drive URL',false,'https://www.youtube.com/watch?v=…');
+    fieldBox.append(make('p','admin-field-help','Use a public video link that allows embedding. Google Drive links must use Anyone with the link → Viewer; Google may still require cookies or sign-in.'));
     const show=draft.professional_projects[focused.index];
     fieldBox.append(button('＋ Add another episode',()=>addEpisode(show,focused.index),'admin-add'));
     fieldBox.append(make('p','admin-field-help','After adding or editing episodes, choose Save draft and then Publish changes.'));
@@ -192,10 +210,34 @@
     heading('Images and videos','Click Edit on a visual to change its title, file or link.');
     const media=item.media|| (item.media=[]);const list=make('div','admin-list');fieldBox.append(list);
     media.forEach((visual,index)=>{
-      const line=make('div','admin-list-row');if(visual.thumbnail||(visual.type!=='video'&&visual.src)){const img=make('img','admin-list-thumb');img.src=visual.thumbnail||visual.src;img.alt='';line.append(img);}
-      line.append(button(visual.title||'Untitled visual',()=>{focused.media=index;renderFields();},'admin-list-edit'),rowActions(line,media,index,renderFields));list.append(line);
+      const line=make('div','admin-list-row admin-visual-list-row');
+      if(visual.thumbnail||(visual.type!=='video'&&visual.src)){const img=make('img','admin-list-thumb');img.src=visual.thumbnail||visual.src;img.alt='';img.onerror=()=>{img.alt='Image unavailable';img.classList.add('admin-missing-thumb');};line.append(img);}
+      const title=make('input','admin-input admin-inline-title');title.value=visual.title||'';title.placeholder=`Image ${index+1} title`;
+      title.setAttribute('aria-label',`Title for image or video ${index+1}`);title.addEventListener('input',()=>{visual.title=title.value;touch();});
+      line.append(title,button('Details',()=>{focused.media=index;renderFields();},'small'),rowActions(line,media,index,renderFields,false));list.append(line);
     });
-    fieldBox.append(button('＋ Add image or video',()=>{
+    const {block}=group(fieldBox,'Upload multiple images together');
+    const picker=make('input','admin-input');picker.type='file';picker.multiple=true;picker.accept='image/jpeg,image/png,image/webp,image/avif,image/gif';
+    picker.setAttribute('aria-label','Select several images for this set');
+    const help=make('p','admin-field-help','Choose several images at once. Their filenames become editable titles below.');
+    picker.addEventListener('change',async()=>{
+      const files=[...(picker.files||[])];if(!files.length)return;
+      picker.disabled=true;let done=0;const failures=[];
+      for(const file of files){
+        try{
+          setStatus(`Uploading image ${done+1} of ${files.length}: ${file.name}`,'saving');
+          const url=await upload(file,'creative');
+          media.push({title:nameFromFile(file),type:'image',src:url,thumbnail:''});
+          if(!item.cover)item.cover=url;
+          done++;touch();
+        }catch(e){failures.push(`${file.name}: ${e?.message||e}`);}
+      }
+      picker.disabled=false;renderFields();
+      if(failures.length)alert(`${done} image(s) added. ${failures.length} failed:\n`+failures.join('\n'));
+      else setStatus(`${done} images uploaded. You can rename them below. Changes remain draft until Publish.`,'unsaved');
+    });
+    block.append(picker,help);
+    fieldBox.append(button('＋ Add an individual image or video',()=>{
       media.push({title:'Untitled visual',type:'image',src:'',thumbnail:''});focused.media=media.length-1;touch();renderFields();
     },'admin-add'));
   }
@@ -206,7 +248,8 @@
     [['image','Image'],['video','Video']].forEach(([value,label])=>{const opt=make('option','',label);opt.value=value;select.append(opt);});select.value=item.type||'image';
     select.onchange=()=>{item.type=select.value;touch();renderFields();};block.append(select);
     if(item.type==='video'){
-      mediaField(fieldBox,item,'src','Video file or YouTube/Vimeo URL','video','creative');
+      mediaField(fieldBox,item,'src','Video file / YouTube / Vimeo / Google Drive URL','video','creative');
+      fieldBox.append(make('p','admin-field-help','For Google Drive, paste the actual FILE sharing link (Anyone with the link → Viewer). The public viewer uses Google Drive preview, not a raw video tag. If playback is blocked by Google, visitors can open it in Drive.'));
       mediaField(fieldBox,item,'thumbnail','Video thumbnail','image','creative');
     } else mediaField(fieldBox,item,'src','Image file','image','creative');
   }
@@ -234,7 +277,10 @@
     const b=button(label,()=>{section=key;focused=null;renderTabs();renderFields();navigatePreview(defaultUrl(key));},section===key?'active':'');tabs.append(b);
   }}
   function defaultUrl(key){return path(({home:'',work:'work/',academic:'work/academic/',professional:'work/professional/',creative:'work/creative-explorations/',about:'about/',contact:'contact/'}[key]||'' )+'?portfolio_preview=1');}
-  function navigatePreview(url){if(preview.src!==new URL(url,location.origin).href)preview.src=url;else sendPreview();}
+  function navigatePreview(url){
+    if(preview.src!==new URL(url,location.origin).href){suppressPreviewSync=true;preview.src=url;}
+    else sendPreview();
+  }
   function routeToSection(){
     try{
       const loc=preview.contentWindow.location;
@@ -294,24 +340,39 @@
   }
   async function saveDraft(automatic=false){
     if(!draft)return false;
+    if(pendingUploads>0){if(!automatic)alert('Finish uploading files before saving or publishing.');return false;}
     clearTimeout(autosaveTimer);
     const snapshot=JSON.stringify(draft);
-    if(automatic && snapshot===lastSaved)return true;
-    setStatus(automatic?'Auto-saving draft…':'Saving draft…','saving');
-    const {error}=await db.from('portfolio_drafts').upsert({id:'main',content:JSON.parse(snapshot),updated_at:new Date().toISOString()});
-    if(error){setStatus('Save failed','error');if(!automatic)alert('Cannot save: '+error.message);return false;}
-    lastSaved=snapshot;
-    if(JSON.stringify(draft)===snapshot){hasChanges=false;setStatus(automatic?'Draft saved automatically':'Draft saved','success');}
-    else{setStatus('New unsaved changes','unsaved');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveDraft(true),1300);}
-    return true;
+    if(snapshot===lastSaved){if(!automatic)setStatus('Draft already saved','success');return true;}
+    const doWrite=async()=>{
+      setStatus(automatic?'Auto-saving draft…':'Saving draft…','saving');
+      const {error}=await db.from('portfolio_drafts').upsert({id:'main',content:JSON.parse(snapshot),updated_at:new Date().toISOString()});
+      if(error){setStatus('Save failed','error');if(!automatic)alert('Cannot save: '+error.message);return false;}
+      lastSaved=snapshot;
+      if(JSON.stringify(draft)===snapshot){hasChanges=false;setStatus(automatic?'Draft saved automatically':'Draft saved','success');}
+      else{hasChanges=true;setStatus('New unsaved changes','unsaved');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveDraft(true),1500);}
+      return true;
+    };
+    const request=writeQueue.then(doWrite,doWrite);
+    writeQueue=request.catch(()=>false);
+    return request;
   }
-  async function publish(){if(!confirm('Publish this draft to your public website?'))return;
-    if(!await saveDraft(false))return;
-    setStatus('Publishing…','saving');
-    const {error}=await db.from('portfolio_published').upsert({id:'main',content:draft,updated_at:new Date().toISOString()});
-    if(error){setStatus('Publish failed','error');alert('Cannot publish: '+error.message);return;}
-    setStatus('Published successfully','success');
+  async function publish(){
+    if(isPublishing)return;
+    if(pendingUploads>0){alert('Finish uploading media before publishing.');return;}
+    if(!confirm('Publish this draft to your public website?'))return;
+    isPublishing=true;
+    const publishButton=$('#admin-publish');publishButton.disabled=true;
+    try{
+      if(!await saveDraft(false))return;
+      const snapshot=JSON.parse(JSON.stringify(draft));
+      setStatus('Publishing…','saving');
+      const {error}=await db.from('portfolio_published').upsert({id:'main',content:snapshot,updated_at:new Date().toISOString()});
+      if(error){setStatus('Publish failed','error');alert('Cannot publish: '+error.message);return;}
+      setStatus(JSON.stringify(draft)===JSON.stringify(snapshot)?'Published successfully':'Published; newer changes remain draft','success');
+    } finally {isPublishing=false;publishButton.disabled=false;}
   }
+
   async function startEditor(user){
     const {data:membership,error:memberError}=await db.from('portfolio_admins').select('user_id').eq('user_id',user.id).maybeSingle();
     if(memberError||!membership){await db.auth.signOut();showError('This account is not authorized to edit the portfolio. Add its User ID to portfolio_admins in Supabase.');return;}
@@ -331,12 +392,15 @@
     draft.site.contact_intro ||= 'Have a question, an idea, or just want to say hello? My inbox is open.';
     loginPanel.hidden=true;shell.hidden=false;
     lastSaved=JSON.stringify(draft);setStatus(dr?.content?'Draft ready':'Starting content ready');
-    preview.addEventListener('load',syncWithPreview);
+    preview.addEventListener('load',()=>{
+      if(suppressPreviewSync){suppressPreviewSync=false;sendPreview();return;}
+      syncWithPreview();
+    });
     window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===preview.contentWindow&&event.data?.type==='PORTFOLIO_PREVIEW_READY')sendPreview();});
     $('#admin-save').onclick=()=>saveDraft(false);$('#admin-publish').onclick=publish;
     $('#admin-signout').onclick=async()=>{if(hasChanges&&!confirm('You have unsaved changes. Log out anyway?'))return;await db.auth.signOut();location.reload();};
     $('#admin-open-live').onclick=()=>window.open(path(), '_blank', 'noopener,noreferrer');
-    renderTabs();renderFields();preview.src=defaultUrl('home');
+    renderTabs();renderFields();navigatePreview(defaultUrl('home'));
     window.addEventListener('beforeunload',event=>{if(hasChanges){event.preventDefault();event.returnValue='';}});
   }
   let backend;

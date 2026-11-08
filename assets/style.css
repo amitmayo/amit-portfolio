@@ -152,3 +152,10 @@ body{font-family:var(--font-editorial);font-size:18px;font-weight:400;letter-spa
 
 .gallery-item img{transform:scale(var(--media-zoom,1))}.gallery-item:hover img{transform:scale(calc(var(--media-zoom,1) * 1.055))}
 .portfolio-collection-viewer [hidden]{display:none!important}
+
+/* Version 5 — PDF document chooser and a discreet video-host fallback. */
+.pdf-switcher{display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.pdf-switch{font-family:var(--font-typewriter,'Courier Prime',monospace);font-size:12px;border:1px solid var(--border);background:transparent;color:var(--muted);padding:10px 14px;cursor:pointer;max-width:100%;text-align:left;white-space:normal}
+.pdf-switch.active,.pdf-switch[aria-pressed="true"]{background:rgba(148,74,92,.21);color:var(--ink);border-color:var(--accent-light)}
+.pdf-switch:hover{color:var(--ink)}
+.drive-fallback-link{color:#e8b5c3;text-decoration:underline;text-underline-offset:3px}

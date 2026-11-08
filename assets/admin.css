@@ -62,3 +62,11 @@ textarea.admin-input{resize:vertical;min-height:82px}
 .admin-crop-slider input{grid-column:1/-1;width:100%;accent-color:#ae6c82}
 .admin-crop-value{color:#bd9aa6}
 .admin-media-row .admin-input{flex:1}
+
+/* Version 5 admin document list + inline media title editing */
+.admin-pdf-item{padding:14px;border:1px solid #4d4047;display:grid;gap:14px;margin-bottom:10px}
+.admin-document-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
+.admin-pdf-item .admin-inline-actions{display:flex;gap:4px}
+.admin-visual-list-row{flex-wrap:wrap}
+.admin-visual-list-row .admin-inline-title{min-width:120px;flex:1 1 150px;font-size:12px}
+.admin-missing-thumb{border:1px solid #b68696}
