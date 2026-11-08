@@ -18,11 +18,17 @@
   const listHead = (label, count) => `<div class="section-topline"><span class="small-label">${esc(label)}</span><span class="count-label">${esc(count)}</span></div>`;
   const crumb = steps => `<nav aria-label="Breadcrumb" class="breadcrumbs"><a href="${p()}">Home</a>${steps.map(([label,route])=>`<span class="sep">/</span>${route!==null?`<a href="${p(route)}">${esc(label)}</a>`:`<span>${esc(label)}</span>`}`).join('')}</nav>`;
   const back = (label, route) => `<div class="back-row"><a class="back-link" href="${p(route)}">← ${esc(label)}</a></div>`;
-  const imageBg = value => asset(value) ? `style="background-image:url('${esc(asset(value)).replace(/'/g,'&#39;')}')"` : '';
+  const imageBg = (value, item={}) => {
+    if (!asset(value)) return '';
+    const x=Math.min(100,Math.max(0,Number(item.coverPositionX??50)||0));
+    const y=Math.min(100,Math.max(0,Number(item.coverPositionY??50)||0));
+    const zoom=Math.min(2.5,Math.max(1,Number(item.coverZoom??1)||1));
+    return `style="background-image:url('${esc(asset(value)).replace(/'/g,'&#39;')}');background-position:${x}% ${y}%;--media-zoom:${zoom}"`;
+  };
   const card = (item, route, count, compact=false,wide=false) => {
     const tone = String(item.tone || 'clay').replace(/[^a-z]/g,'');
     return `<a class="visual-card ${compact?'small':''} ${wide?'wide':''}" href="${esc(route)}" aria-label="Explore ${esc(item.title)}">
-      <div class="visual-card-image tone-${tone}" ${imageBg(item.cover)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div>
+      <div class="visual-card-image tone-${tone}" ${imageBg(item.cover,item)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div>
       <div class="visual-card-content"><div class="tile-top"><span class="tile-index">${esc(count)}</span><span class="tile-icon">${icon('arrow')}</span></div>
       <div class="tile-bottom"><h2 class="tile-title ${compact?'smaller':''}">${esc(item.title)}</h2><p class="tile-subtitle">${esc(item.subtitle || '')}</p></div></div></a>`;
   };
@@ -49,6 +55,7 @@
     if (parts[0]==='about'||parts[0]==='contact') return [parts[0]];
     return ['unknown'];
   };
+  let lastSelectedHero=null;
   window.PortfolioLive = {getRoute,asset,render};
 
   const iframeSafe = url => {
@@ -67,8 +74,21 @@
     return '';
   };
 
+  const pdfLink = raw => {
+    const source=asset(raw);if(!source)return {embed:'',open:''};
+    try{
+      const u=new URL(source);
+      if(u.hostname==='drive.google.com'||u.hostname==='www.drive.google.com'){
+        const id=u.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1] || u.searchParams.get('id');
+        if(id&&/^[a-zA-Z0-9_-]{15,}$/.test(id))return {embed:`https://drive.google.com/file/d/${id}/preview`,open:`https://drive.google.com/file/d/${id}/view`};
+      }
+    }catch(_){}
+    return {embed:source+(source.includes('#')?'':'#toolbar=1&navpanes=0'),open:source};
+  };
+
   function render(data) {
     if (!data || !data.site) return;
+    currentContent=data;
     const main = document.getElementById('main');
     if (!main) return;
     const [type,slug,subslug] = getRoute();
@@ -81,13 +101,30 @@
       if (title) title.textContent = data.site.hero_intro||'';
       const link = main.querySelector('.explore-button');
       if (link) link.firstChild.textContent = data.site.homepage_button||"Let's explore";
-      const imgs = (data.site.hero_images||[]).map(asset).filter(Boolean);
-      const bg = main.querySelector('[data-hero-background]');
-      if (bg && imgs.length) {
-        let old = '';try {old=localStorage.getItem('amit-portfolio-last-hero')||'';}catch(_){}
-        const pool = imgs.filter(x=>x!==old);const img=pool[Math.floor(Math.random()*pool.length)]||imgs[0];
-        const preload=new Image();preload.onload=()=>{bg.style.backgroundImage=`url(${JSON.stringify(img)})`;bg.classList.add('has-photo');try{localStorage.setItem('amit-portfolio-last-hero',img);}catch(_){} };preload.src=img;
-      } else if (bg) {bg.classList.remove('has-photo');bg.style.backgroundImage='';}
+      const imgs = (data.site.hero_images||[]).map(entry => typeof entry==='string' ? {src:entry} : entry).filter(entry=>entry&&asset(entry.src));
+      const bg=main.querySelector('[data-hero-background]');
+      if(bg){
+        if(imgs.length){
+          let previous='';try{previous=sessionStorage.getItem('amit-portfolio-last-hero')||'';}catch(_){}
+          const other=imgs.filter(entry=>asset(entry.src)!==previous);
+          const pool=other.length?other:imgs;
+          // In editor preview, keep the current photo stable while adjusting its framing.
+          const previewing=window.parent!==window && new URLSearchParams(location.search).has('portfolio_preview');
+          const chosen=(previewing && imgs.find(x=>asset(x.src)===lastSelectedHero)) || pool[Math.floor(Math.random()*pool.length)];
+          lastSelectedHero=asset(chosen.src);
+          const src=asset(chosen.src);
+          const apply=()=>{
+            bg.style.backgroundImage=`url(${JSON.stringify(src)})`;
+            bg.style.backgroundPosition=`${Math.min(100,Math.max(0,Number(chosen.positionX??50)))}% ${Math.min(100,Math.max(0,Number(chosen.positionY??50)))}%`;
+            bg.style.setProperty('--media-zoom',Math.min(2.5,Math.max(1,Number(chosen.zoom??1))));
+            bg.classList.add('has-photo');
+            try{sessionStorage.setItem('amit-portfolio-last-hero',src);}catch(_){}
+          };
+          if(bg.dataset.currentHero!==src){bg.dataset.currentHero=src;const img=new Image();img.onload=apply;img.src=src;}
+          else apply();
+        }else{bg.classList.remove('has-photo');bg.style.backgroundImage='';bg.style.removeProperty('--media-zoom');}
+      }
+      if(window.PortfolioTyping?.setText){window.PortfolioTyping.setText(data.site.hero_intro||'',true);}
       return;
     }
     if (type==='work') {
@@ -100,9 +137,9 @@
     }
     if (type==='academic-detail') {
       const x=academics.find(v=>v.slug===slug);if(!x) return renderNotFound(main);
-      const pdf=asset(x.pdf);const doc=pdf?`<div class="pdf-viewport"><iframe title="${esc(x.title)} — full project PDF" src="${esc(pdf)}#toolbar=1&navpanes=0" loading="lazy"></iframe></div>`:`<div class="pdf-empty">${icon('file')}<strong>Full project coming soon</strong><p>The PDF will appear here once it's been added to the portfolio.</p></div>`;
-      const actions=pdf?`<a href="${esc(pdf)}" target="_blank" rel="noopener noreferrer">Open PDF ↗</a><button type="button" data-live-pdf-fullscreen>Fullscreen</button>`:'';
-      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document</span></div><div class="pdf-actions">${actions}</div></div>${doc}</section>`+back('All academic projects','work/academic/'));
+      const pdf=pdfLink(x.pdf);const doc=pdf.embed?`<div class="pdf-viewport"><iframe title="${esc(x.title)} — full project PDF" src="${esc(pdf.embed)}" loading="lazy" referrerpolicy="no-referrer"></iframe></div>`:`<div class="pdf-empty">${icon('file')}<strong>Full project coming soon</strong><p>The PDF will appear here once it's been added to the portfolio.</p></div>`;
+      const actions=pdf.embed?`<a href="${esc(pdf.open)}" target="_blank" rel="noopener noreferrer">Open document ↗</a><button type="button" data-live-pdf-fullscreen>Fullscreen</button>`:'';
+      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover,x)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document</span></div><div class="pdf-actions">${actions}</div></div>${doc}</section>`+back('All academic projects','work/academic/'));
       document.title=x.title+' — Amit Dahan Mayo';
     }
     if (type==='professional') {
@@ -124,12 +161,12 @@
       document.title=ep.title+' — Amit Dahan Mayo';
     }
     if(type==='creative-explorations') {
-      markup=wrap(crumb([['Work','work/'],['Creative Explorations',null]])+intro('03 / Creative Explorations','Less talking. <em>More looking.</em>','An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',true)+listHead('Browse the sets',`${String(sets.length).padStart(2,'0')} sets`)+`<div class="tile-grid">${sets.map((x,i)=>card(x,urlCreative(x),`${String(i+1).padStart(2,'0')} / ${String(sets.length).padStart(2,'0')}`)).join('')}</div>`+back('Back to Work','work/'));
+      markup=wrap(crumb([['Work','work/'],['Creative Explorations',null]])+intro('03 / Creative Explorations','Less talking. <em>More looking.</em>','An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',true)+listHead('Browse the sets',`${String(sets.length).padStart(2,'0')} sets`)+`<div class="tile-grid">${sets.map((x,i)=>card(x,urlCreative(x),`${String(i+1).padStart(2,'0')} / ${String(sets.length).padStart(2,'0')}`).replace('<a class="visual-card','<a data-live-open-set="'+esc(x.slug)+'" class="visual-card')).join('')}</div>`+back('Back to Work','work/'));
     }
     if(type==='creative-detail') {
       const set=sets.find(x=>x.slug===slug);if(!set)return renderNotFound(main);
       const items=(set.media||[]).filter(x=>asset(x.src)&&(asset(x.thumbnail)||(x.type==='image'&&asset(x.src))));
-      const tiles=items.map(x=>{const kind=x.type==='video'?'video':'image';const src=kind==='video'?iframeSafe(x.src)||asset(x.src):asset(x.src);return `<button type="button" class="gallery-item" data-live-gallery-item data-kind="${kind}" data-src="${esc(src)}" data-caption="${esc(x.title||'Visual work')}" aria-label="Open ${esc(x.title||'image')} fullscreen"><img src="${esc(asset(x.thumbnail)||asset(x.src))}" alt="${esc(x.title||'Visual work')}" loading="lazy">${kind==='video'?'<span class="play-marker" aria-hidden="true">▶</span>':''}<span class="gallery-caption">${esc(x.title||'')}</span></button>`}).join('');
+      const tiles=items.map(x=>{const kind=x.type==='video'?'video':'image';const src=kind==='video'?iframeSafe(x.src)||asset(x.src):asset(x.src);return `<button type="button" class="gallery-item" data-live-gallery-item data-kind="${kind}" data-src="${esc(src)}" data-caption="${esc(x.title||'Visual work')}" aria-label="Open ${esc(x.title||'image')} fullscreen"><img src="${esc(asset(x.thumbnail)||asset(x.src))}" alt="${esc(x.title||'Visual work')}" loading="lazy" style="object-position:${Math.min(100,Math.max(0,Number(x.coverPositionX??50)))}% ${Math.min(100,Math.max(0,Number(x.coverPositionY??50)))}%;--media-zoom:${Math.min(2.5,Math.max(1,Number(x.coverZoom??1)))}">${kind==='video'?'<span class="play-marker" aria-hidden="true">▶</span>':''}<span class="gallery-caption">${esc(x.title||'')}</span></button>`}).join('');
       const gallery=tiles?`<div class="gallery-grid" data-live-gallery>${tiles}</div>`:`<div class="placeholder-panel"><p class="eyebrow">A work in progress</p><h2>More to show soon.</h2><p>This set will hold a mix of images and videos once they've been added.</p></div>`;
       markup=wrap(crumb([['Work','work/'],['Creative Explorations','work/creative-explorations/'],[set.title,null]])+intro('Creative Explorations',esc(set.title),set.subtitle||'',true)+gallery+back('All creative sets','work/creative-explorations/'));
       document.title=set.title+' — Amit Dahan Mayo';
@@ -148,34 +185,64 @@
   }
   function renderNotFound(main){ main.innerHTML=wrap(intro('Not found','This project is unavailable.','','true')+back('Browse work','work/')); }
 
-  // PDF fullscreen and dynamic lightbox must be delegated because published media can change.
-  document.addEventListener('click', event => {
+  // Media viewer: set cards open over the category page. A single visual opens alone;
+  // multi-item sets offer previous/next navigation AND an optional grid view.
+  let currentContent=null, viewer=null, viewerItems=[],viewerIndex=0,viewerMode='slide',restoreFocus=null;
+  function mediaItems(set){
+    return (set?.media||[]).map((x,i)=>{
+      const kind=x.type==='video'?'video':'image', src=kind==='video'?(iframeSafe(x.src)||asset(x.src)):asset(x.src);
+      const thumb=asset(x.thumbnail)||(kind==='image'?src:'');
+      return {kind,src,thumb,title:x.title||`Visual ${i+1}`,crop:x};
+    }).filter(x=>x.src);
+  }
+  function ensureViewer(){
+    if(viewer)return;
+    viewer=document.createElement('div');viewer.className='lightbox portfolio-collection-viewer';viewer.setAttribute('role','dialog');viewer.setAttribute('aria-modal','true');viewer.setAttribute('aria-label','Creative collection');viewer.setAttribute('tabindex','-1');
+    viewer.innerHTML=`<div class="lightbox-top"><span class="lightbox-counter"></span><button type="button" class="collection-grid-switch" data-c-grid hidden>Grid view</button><button type="button" class="lightbox-btn" data-c-close aria-label="Close viewer">×</button></div><button type="button" class="lightbox-btn lightbox-arrow lightbox-prev" data-c-prev aria-label="Previous item">‹</button><div class="collection-stage" data-c-stage></div><button type="button" class="lightbox-btn lightbox-arrow lightbox-next" data-c-next aria-label="Next item">›</button><div class="lightbox-bottom"></div>`;
+    document.body.append(viewer);
+    viewer.querySelector('[data-c-close]').onclick=closeViewer;
+    viewer.querySelector('[data-c-prev]').onclick=()=>stepViewer(-1);
+    viewer.querySelector('[data-c-next]').onclick=()=>stepViewer(1);
+    viewer.querySelector('[data-c-grid]').onclick=()=>{viewerMode=viewerMode==='grid'?'slide':'grid';drawViewer()};
+    viewer.addEventListener('click',e=>{if(e.target===viewer)closeViewer()});
+  }
+  function openViewer(items,index=0){
+    if(!items.length)return;
+    ensureViewer();restoreFocus=document.activeElement;viewerItems=items;viewerIndex=Math.min(Math.max(index,0),items.length-1);
+    viewerMode='slide';viewer.classList.add('open');document.body.style.overflow='hidden';drawViewer();viewer.querySelector('[data-c-close]').focus();
+  }
+  function drawViewer(){
+    if(!viewer?.classList.contains('open'))return;
+    const stage=viewer.querySelector('[data-c-stage]');stage.replaceChildren();
+    const grid=viewer.querySelector('[data-c-grid]');grid.hidden=viewerItems.length<2;grid.textContent=viewerMode==='grid'?'Slideshow':'Grid view';
+    viewer.querySelector('[data-c-prev]').hidden=viewer.querySelector('[data-c-next]').hidden=viewerMode==='grid'||viewerItems.length<2;
+    viewer.querySelector('.lightbox-counter').textContent=viewerItems.length>1?`${viewerIndex+1} / ${viewerItems.length}`:'';
+    if(viewerMode==='grid'){
+      const tiles=document.createElement('div');tiles.className='collection-modal-grid';
+      viewerItems.forEach((item,i)=>{
+        const btn=document.createElement('button');btn.type='button';btn.className='collection-grid-tile';btn.setAttribute('aria-label','Open '+item.title);
+        if(item.thumb){const img=document.createElement('img');img.src=item.thumb;img.alt=item.title;btn.append(img);}else btn.textContent=item.title;
+        btn.onclick=()=>{viewerIndex=i;viewerMode='slide';drawViewer();};tiles.append(btn);
+      });stage.append(tiles);viewer.querySelector('.lightbox-bottom').textContent='Select an image or video';return;
+    }
+    const item=viewerItems[viewerIndex],node=item.kind==='image'?document.createElement('img'):(/youtube-nocookie\.com\/embed|player\.vimeo\.com\/video/.test(item.src)?document.createElement('iframe'):document.createElement('video'));
+    node.className=item.kind==='image'?'lightbox-media':'lightbox-video';
+    if(node.tagName==='IMG')node.alt=item.title;
+    if(node.tagName==='IFRAME'){node.title=item.title;node.allow='autoplay; encrypted-media; picture-in-picture';node.allowFullscreen=true;}
+    if(node.tagName==='VIDEO'){node.controls=true;node.playsInline=true;}
+    node.src=item.src;stage.append(node);viewer.querySelector('.lightbox-bottom').textContent=item.title;
+  }
+  function stepViewer(delta){if(viewerMode==='grid'||viewerItems.length<2)return;viewerIndex=(viewerIndex+delta+viewerItems.length)%viewerItems.length;drawViewer()}
+  function closeViewer(){if(!viewer)return;viewer.classList.remove('open');viewer.querySelector('[data-c-stage]').replaceChildren();document.body.style.overflow='';restoreFocus?.focus?.();}
+  document.addEventListener('click',event=>{
     const pdfButton=event.target.closest('[data-live-pdf-fullscreen]');
-    if (pdfButton){const section=pdfButton.closest('.pdf-block');if(section?.requestFullscreen)section.requestFullscreen().catch(()=>{});return;}
-    const btn=event.target.closest('[data-live-gallery-item]');
-    if(btn){const all=[...document.querySelectorAll('[data-live-gallery-item]')];openGallery(all,all.indexOf(btn));}
+    if(pdfButton){const frame=pdfButton.closest('.pdf-block');if(frame?.requestFullscreen)frame.requestFullscreen().catch(()=>{});return;}
+    const setLink=event.target.closest('[data-live-open-set]');
+    if(setLink){event.preventDefault();const set=(currentContent?.creative_collections||[]).find(x=>x.slug===setLink.dataset.liveOpenSet);const items=mediaItems(set);if(items.length)openViewer(items);else window.location.href=setLink.href;return;}
+    const item=event.target.closest('[data-live-gallery-item]');
+    if(item){const all=[...document.querySelectorAll('[data-live-gallery-item]')];openViewer(all.map(x=>({kind:x.dataset.kind,src:x.dataset.src,thumb:x.querySelector('img')?.src||'',title:x.dataset.caption||'Visual work'})),all.indexOf(item));}
   });
-  let modal=null,activeItems=[],activeIndex=0;
-  function openGallery(items,index){
-    activeItems=items;activeIndex=Math.max(0,index);
-    if(!modal){modal=document.createElement('div');modal.className='lightbox open';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');
-      modal.innerHTML='<div class="lightbox-top"><span class="lightbox-counter"></span><button type="button" class="lightbox-btn" data-l-close aria-label="Close">×</button></div><button type="button" class="lightbox-btn lightbox-arrow lightbox-prev" data-l-prev aria-label="Previous">‹</button><div data-l-media style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"></div><button type="button" class="lightbox-btn lightbox-arrow lightbox-next" data-l-next aria-label="Next">›</button><div class="lightbox-bottom"></div>';
-      document.body.appendChild(modal);modal.querySelector('[data-l-close]').onclick=closeGallery;modal.querySelector('[data-l-prev]').onclick=()=>step(-1);modal.querySelector('[data-l-next]').onclick=()=>step(1);modal.addEventListener('click',e=>{if(e.target===modal)closeGallery()});}
-    modal.classList.add('open');document.body.style.overflow='hidden';showGallery();modal.querySelector('[data-l-close]').focus();
-  }
-  function showGallery(){
-    const item=activeItems[activeIndex];if(!item)return;
-    const holder=modal.querySelector('[data-l-media]');holder.replaceChildren();let node;
-    if(item.dataset.kind==='video') {if(/youtube-nocookie\.com\/embed|player\.vimeo\.com\/video/.test(item.dataset.src)){node=document.createElement('iframe');node.allow='autoplay; encrypted-media; picture-in-picture';node.allowFullscreen=true;}else{node=document.createElement('video');node.controls=true;node.autoplay=true;node.playsInline=true;}node.className='lightbox-video';}
-    else{node=document.createElement('img');node.alt=item.dataset.caption||'';node.className='lightbox-media';}
-    node.src=item.dataset.src;holder.appendChild(node);
-    modal.querySelector('.lightbox-counter').textContent=`${activeIndex+1} / ${activeItems.length}`;
-    modal.querySelector('.lightbox-bottom').textContent=item.dataset.caption||'';
-    modal.querySelector('[data-l-prev]').hidden=modal.querySelector('[data-l-next]').hidden=activeItems.length<2;
-  }
-  function step(delta){activeIndex=(activeIndex+delta+activeItems.length)%activeItems.length;showGallery();}
-  function closeGallery(){if(!modal)return;modal.classList.remove('open');modal.querySelector('[data-l-media]').replaceChildren();document.body.style.overflow='';}
-  document.addEventListener('keydown',e=>{if(!modal?.classList.contains('open'))return;if(e.key==='Escape')closeGallery();if(e.key==='ArrowRight')step(1);if(e.key==='ArrowLeft')step(-1);});
+  document.addEventListener('keydown',e=>{if(!viewer?.classList.contains('open'))return;if(e.key==='Escape'){e.preventDefault();closeViewer();}if(e.key==='ArrowRight'){e.preventDefault();stepViewer(1);}if(e.key==='ArrowLeft'){e.preventDefault();stepViewer(-1);}if(e.key==='Tab'){const allowed=[...viewer.querySelectorAll('button:not([hidden])')];if(!allowed.length)return;const i=allowed.indexOf(document.activeElement);if(e.shiftKey&&i===0){e.preventDefault();allowed.at(-1).focus();}else if(!e.shiftKey&&i===allowed.length-1){e.preventDefault();allowed[0].focus();}}});
 
   // Draft preview messages are accepted only from the same-origin admin iframe parent.
   window.addEventListener('message',event=>{
@@ -189,11 +256,11 @@
       try{
         const url=backend.url.replace(/\/$/,'')+'/rest/v1/portfolio_published?id=eq.main&select=content';
         const response=await fetch(url,{headers:{apikey:backend.publishableKey,'Accept':'application/json'},cache:'no-store'});
-        if(response.ok){const rows=await response.json();if(rows?.[0]?.content)render(rows[0].content);}
+        if(response.ok){const rows=await response.json();if(rows?.[0]?.content && !(window.parent!==window && new URLSearchParams(location.search).has('portfolio_preview')))render(rows[0].content);}
       } catch(error){console.warn('Public portfolio uses the built-in content fallback.',error);}
     }
     // Enables working static fallback if an item is created only in site.json.
-    if(!backend?.url && fallback){ /* build.py already rendered the fallback content */ }
+    if(fallback && !currentContent){currentContent=fallback;}
     if(window.parent!==window && new URLSearchParams(location.search).has('portfolio_preview'))window.parent.postMessage({type:'PORTFOLIO_PREVIEW_READY'},location.origin);
   });
 })();

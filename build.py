@@ -118,7 +118,11 @@ def breadcrumbs(steps: list[tuple[str, str | None]]) -> str:
 
 def art_style(info: dict) -> str:
     path = info.get("cover", "")
-    return (f' style="background-image:url(&quot;{e(media_uri(path))}&quot;)"' if has_media(path) else '')
+    if not has_media(path): return ''
+    x = max(0,min(100,float(info.get('coverPositionX', 50))))
+    y = max(0,min(100,float(info.get('coverPositionY', 50))))
+    zoom = max(1,min(2.5,float(info.get('coverZoom', 1))))
+    return f' style="background-image:url(&quot;{e(media_uri(path))}&quot;);background-position:{x}% {y}%;--media-zoom:{zoom}"' 
 
 
 def card(info: dict, target: str, counter: str, *, compact: bool = False, wide: bool = False) -> str:
@@ -144,7 +148,7 @@ def back(text: str, target: str) -> str:
 
 
 def home() -> None:
-    images = [media_uri(p) for p in SITE.get("hero_images", []) if has_media(p)]
+    images = [{**entry,'src':media_uri(entry['src'])} if isinstance(entry,dict) else {'src':media_uri(entry)} for entry in SITE.get('hero_images',[]) if has_media(entry.get('src','') if isinstance(entry,dict) else entry)]
     script_json = json.dumps(images, ensure_ascii=False).replace("<", "\\u003c")
     body = f'''<section class="hero" aria-label="Introduction">
       <div class="hero-background" data-hero-background></div><div class="hero-overlay"></div><div class="hero-texture"></div>
@@ -173,14 +177,26 @@ def academic() -> None:
     write("work/academic", page("Academic Work", "Selected academic projects from Istituto Marangoni Milano by Amit Dahan Mayo.", body, active="work"))
 
 
+def pdf_embed_link(path: str) -> tuple[str, str]:
+    from urllib.parse import parse_qs, urlparse
+    source=media_uri(path)
+    u=urlparse(source)
+    if u.hostname in ('drive.google.com','www.drive.google.com'):
+        m=re.search(r'/file/d/([a-zA-Z0-9_-]{15,})',u.path)
+        identifier=m.group(1) if m else parse_qs(u.query).get('id',[''])[0]
+        if re.fullmatch(r'[a-zA-Z0-9_-]{15,}',identifier):
+            return f'https://drive.google.com/file/d/{identifier}/preview', f'https://drive.google.com/file/d/{identifier}/view'
+    return source+'#toolbar=1&navpanes=0',source
+
+
 def pdf_viewer(info: dict) -> str:
     pdf = info.get('pdf', '')
     if not has_media(pdf):
         content = f'''<div class="pdf-empty">{icon('file',43)}<strong>Full project coming soon</strong><p>The PDF will appear here once it's been added to the portfolio.</p></div>'''
         actions = ""
     else:
-        raw = media_uri(pdf)
-        content = f'<div class="pdf-viewport"><iframe title="{e(info["title"])} — complete project PDF" src="{e(raw)}#toolbar=1&navpanes=0" loading="lazy"></iframe></div>'
+        embed,raw=pdf_embed_link(pdf)
+        content = f'<div class="pdf-viewport"><iframe title="{e(info["title"])} — complete project PDF" src="{e(embed)}" loading="lazy"></iframe></div>'
         actions = f'<a href="{e(raw)}" target="_blank" rel="noopener noreferrer" aria-label="Open PDF in new tab">{icon("external")}<span class="label">Open PDF</span></a><button type="button" data-pdf-fullscreen aria-label="Fullscreen PDF">{icon("expand")}<span class="label">Fullscreen</span></button>'
     return f'''<section aria-label="Project PDF" class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">{icon('file')}<span>Project document</span></div><div class="pdf-actions">{actions}</div></div>{content}</section>'''
 
@@ -254,7 +270,7 @@ def professional_episode(show: dict, ep: dict) -> None:
 
 def creative() -> None:
     collections = CONFIG['creative_collections']
-    cards = ''.join(card(coll,f"work/creative-explorations/{coll['slug']}/",f"{i:02d} / {len(collections):02d}") for i,coll in enumerate(collections,1))
+    cards = ''.join(card(coll,f"work/creative-explorations/{coll['slug']}/",f"{i:02d} / {len(collections):02d}").replace('class="visual-card','data-live-open-set="'+e(coll['slug'])+'" class="visual-card') for i,coll in enumerate(collections,1))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work','work/'),('Creative Explorations',None)])}
       {intro('03 / Creative Explorations', 'Less talking. <em>More looking.</em>', 'An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',smaller=True)}
       {list_head('Browse the sets',f'{len(collections):02d} sets')}<div class="tile-grid">{cards}</div>{back('Back to Work','work/')}</div>'''
@@ -279,7 +295,7 @@ def creative_collection(coll: dict) -> None:
         title = item.get('title',f'Visual {i+1}')
         play = f'<span class="play-marker">{icon("play",52)}</span>' if kind=='video' else ''
         tiles.append(f'''<button type="button" class="gallery-item" data-gallery-item data-kind="{kind}" data-src="{e(src)}" data-caption="{e(title)}" aria-label="Open {e(title)} fullscreen">
-        <img src="{e(media_uri(thumbnail))}" alt="{e(title)}" loading="lazy">{play}<span class="gallery-caption">{e(title)}</span></button>''')
+        <img src="{e(media_uri(thumbnail))}" alt="{e(title)}" loading="lazy" style="object-position:{e(item.get('coverPositionX',50))}% {e(item.get('coverPositionY',50))}%;--media-zoom:{e(item.get('coverZoom',1))}">{play}<span class="gallery-caption">{e(title)}</span></button>''')
     if not tiles:
         gallery = '''<div class="placeholder-panel"><p class="eyebrow">A work in progress</p><h2>More to show soon.</h2><p>This set will hold a mix of images and videos once they've been added.</p></div>'''
     else:

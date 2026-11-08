@@ -127,3 +127,28 @@ body{font-family:var(--font-editorial);font-size:18px;font-weight:400;letter-spa
   .hero-inner{padding:68px 22px}
   .hero-intro{font-size:13px}
 }
+
+/* Portfolio v4: refined homepage reveal, custom crop/framing and typing. */
+.hero-overlay::after{content:"";position:absolute;inset:0;background:linear-gradient(140deg,rgba(99,37,60,.54),rgba(58,22,45,.66));opacity:0;transition:opacity .7s ease;pointer-events:none}
+.hero.is-revealed .hero-overlay{opacity:.82}
+.hero.is-revealed .hero-overlay::after{opacity:.92}
+.hero-background{transform:scale(var(--media-zoom,1.03))}
+.hero.is-revealed .hero-background{transform:scale(calc(var(--media-zoom,1.03) * 1.027))}
+.visual-card-image{transform:scale(var(--media-zoom,1))}
+.visual-card:hover .visual-card-image,.visual-card:focus-visible .visual-card-image{transform:scale(calc(var(--media-zoom,1) * 1.055))}
+.typewriter-intro{position:relative;min-height:3.4em}
+.typewriter-intro::after{content:"";display:inline-block;vertical-align:-.13em;height:1em;width:1px;margin-left:4px;background:currentColor;animation:portfolio-caret 1s steps(1,end) infinite}
+@keyframes portfolio-caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.typewriter-intro::after{animation:none;opacity:.6}}
+.collection-stage{width:100%;height:100%;display:flex;align-items:center;justify-content:center;min-height:0}
+.collection-modal-grid{width:min(95%,1150px);max-height:calc(100svh - 185px);overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:8px}
+.collection-grid-tile{background:#2b2930;border:1px solid #62505e;aspect-ratio:4/3;overflow:hidden;color:#f3eee9;cursor:pointer;font-family:var(--font-typewriter);font-size:12px}
+.collection-grid-tile img{width:100%;height:100%;object-fit:cover;transition:transform .2s}.collection-grid-tile:hover img{transform:scale(1.05)}
+.collection-grid-switch{padding:9px 12px;background:transparent;color:var(--ink);border:1px solid rgba(255,255,255,.45);font-family:var(--font-typewriter);font-size:11px;cursor:pointer}
+@media(max-width:700px){.collection-modal-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:calc(100svh - 175px)}.typewriter-intro{min-height:5.4em}}
+/* Large on-screen collection viewer: optional thumbnail grid inside the overlay. */
+.portfolio-collection-viewer .lightbox-top{right:clamp(18px,4vw,55px)}
+.portfolio-collection-viewer .collection-grid-switch:focus-visible{outline:2px solid var(--accent-light);outline-offset:4px}
+
+.gallery-item img{transform:scale(var(--media-zoom,1))}.gallery-item:hover img{transform:scale(calc(var(--media-zoom,1) * 1.055))}
+.portfolio-collection-viewer [hidden]{display:none!important}

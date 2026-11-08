@@ -31,17 +31,19 @@
   const heroBackground = $('[data-hero-background]');
   const heroButton = $('[data-hero-reveal]');
   if (hero && heroBackground) {
-    const images = Array.isArray(window.PORTFOLIO_HERO_IMAGES) ? window.PORTFOLIO_HERO_IMAGES : [];
+    const images = Array.isArray(window.PORTFOLIO_HERO_IMAGES) ? window.PORTFOLIO_HERO_IMAGES.map(x => typeof x==='string'?{src:x}:x).filter(x=>x?.src) : [];
     if (images.length) {
       let previous = null;
       try { previous = localStorage.getItem('amit-portfolio-last-hero'); } catch (_) {}
-      const candidates = images.length > 1 ? images.filter((src) => src !== previous) : images;
+      const candidates = images.length > 1 ? images.filter(x => x.src !== previous) : images;
       const selected = candidates[Math.floor(Math.random() * candidates.length)] || images[0];
       const preload = new Image();
       preload.onload = () => {
-        heroBackground.style.backgroundImage = `url(${JSON.stringify(selected)})`;
+        heroBackground.style.backgroundImage = `url(${JSON.stringify(selected.src)})`;
+        heroBackground.style.backgroundPosition=`${selected.positionX??50}% ${selected.positionY??50}%`;
+        heroBackground.style.setProperty('--media-zoom',Math.min(2.5,Math.max(1,Number(selected.zoom??1))));
         heroBackground.classList.add('has-photo');
-        try { localStorage.setItem('amit-portfolio-last-hero', selected); } catch (_) {}
+        try { localStorage.setItem('amit-portfolio-last-hero', selected.src); } catch (_) {}
       };
       preload.src = selected;
     }
@@ -53,6 +55,46 @@
         heroButton.addEventListener(eventName, () => hero.classList.remove('is-revealed'));
       }
     }
+  }
+
+  // Intro starts as gentle typing; the caret remains after the last character.
+  // Reduced-motion visitors see the full text immediately.
+  const intro=document.querySelector('.hero-intro');
+  if(intro){
+    const saved=intro.textContent;
+    const heading=document.querySelector('.hero-title');
+    let activeText=saved,timer=null,token=0;
+    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    intro.classList.add('typewriter-intro');
+    const setText=(text,fromData=false)=>{
+      const next=String(text||'');
+      if(fromData && next===activeText)return;
+      activeText=next;token++;if(timer)clearTimeout(timer);
+      if(reduced){intro.textContent=next;intro.classList.add('typing-done');return;}
+      intro.textContent='';intro.classList.remove('typing-done');
+      let i=0;const id=token;
+      const tick=()=>{if(id!==token)return;intro.textContent=next.slice(0,++i);
+        if(i<next.length)timer=setTimeout(tick,/[,.]/.test(next[i-1])?180:26);
+        else intro.classList.add('typing-done');
+      };
+      timer=setTimeout(tick,380);
+    };
+    window.PortfolioTyping={setText};
+    if(heading&&!reduced){
+      const plain='hey ',italic='you.';
+      heading.setAttribute('aria-label','hey you.');
+      const first=document.createElement('span'),em=document.createElement('em');
+      first.setAttribute('aria-hidden','true');em.setAttribute('aria-hidden','true');heading.replaceChildren(first,em);
+      let n=0;
+      const titleTick=()=>{
+        n++;
+        first.textContent=plain.slice(0,Math.min(n,plain.length));
+        if(n>plain.length)em.textContent=italic.slice(0,n-plain.length);
+        if(n<plain.length+italic.length)setTimeout(titleTick,95);
+        else setText(saved);
+      };
+      setTimeout(titleTick,260);
+    }else setText(saved);
   }
 
   // Browser-native PDF embeds already provide page and zoom controls. This expands the frame.

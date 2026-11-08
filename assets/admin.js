@@ -14,7 +14,7 @@
   const preview = $('#admin-preview');
   const status = $('#admin-status');
   let db=null, draft=null, section='home', focused=null, hasChanges=false;
-  let lastSaved=null;
+  let lastSaved=null,previewTimer=null,autosaveTimer=null;
   const SEC={home:'Home',work:'Work',academic:'Academic',professional:'Professional',creative:'Creative',about:'About',contact:'Contact'};
   const defaultTone={academic:'clay',professional:'cobalt',creative:'rose'};
   const safeSlug = input => (String(input||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48) || 'item')+'-'+Math.random().toString(36).slice(2,6);
@@ -24,7 +24,7 @@
   const group = (parent,label) => {const block=make('div','admin-field');const name=make('label','admin-field-label',label);block.append(name);parent.append(block);return {block,name};};
   function showError(message){errorBox.hidden=false;errorBox.textContent=message;}
   function setStatus(text,mode=''){status.textContent=text;status.dataset.state=mode;}
-  const touch=()=>{hasChanges=true;setStatus('Unsaved changes','unsaved');sendPreview();};
+  const touch=()=>{hasChanges=true;setStatus('Unsaved changes','unsaved');clearTimeout(previewTimer);previewTimer=setTimeout(sendPreview,260);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveDraft(true),1800);};
   function sendPreview(){if(draft && preview.contentWindow)preview.contentWindow.postMessage({type:'PORTFOLIO_DRAFT_PREVIEW',content:draft},location.origin);}
   function textField(parent,obj,key,label,large=false,placeholder=''){
     const {block,name}=group(parent,label);const input=make(large?'textarea':'input','admin-input');input.id='admin-'+key+'-'+Math.random().toString(36).slice(2);
@@ -34,7 +34,7 @@
   }
   async function upload(file,folder){
     if(!file)return null;
-    if(file.size>50*1024*1024)throw new Error('This file exceeds the 50 MB upload limit. Use a smaller file or an external PDF/video URL.');
+    if(file.size>50*1024*1024)throw new Error('Supabase Free Storage is limited to 50 MB per file. For large PDFs, paste a Google Drive share link with General access → Anyone with the link → Viewer, or use an optimized PDF hosted elsewhere.');
     const accepted=['image/jpeg','image/png','image/webp','image/avif','image/gif','application/pdf','video/mp4','video/webm'];
     if(!accepted.includes(file.type))throw new Error('Unsupported file type. Use JPG, PNG, WebP, AVIF, GIF, PDF, MP4, or WebM.');
     const ext= (file.name.split('.').pop()||'file').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,10);
@@ -46,21 +46,52 @@
     const {data}=db.storage.from('portfolio-media').getPublicUrl(filename);
     return data.publicUrl;
   }
+  function cropControls(parent,obj,src,label,keys=['coverPositionX','coverPositionY','coverZoom']){
+    if(!src)return;
+    const [xKey,yKey,zoomKey]=keys;
+    const block=make('div','admin-crop-tool');
+    const headline=make('p','admin-field-help','Image framing · position the image within its button or frame.');block.append(headline);
+    const viewport=make('div','admin-crop-window');const layer=make('div','admin-crop-image');
+    layer.style.backgroundImage=`url(${JSON.stringify(src)})`;viewport.append(layer);block.append(viewport);
+    const update=()=>{layer.style.backgroundPosition=`${obj[xKey]??50}% ${obj[yKey]??50}%`;layer.style.transform=`scale(${obj[zoomKey]??1})`;};
+    for(const [key,title,min,max,step,defaultValue] of [[xKey,'Horizontal position',0,100,1,50],[yKey,'Vertical position',0,100,1,50],[zoomKey,'Zoom',1,2.5,.05,1]]){
+      const row=make('label','admin-crop-slider');const span=make('span','',title);const val=make('span','admin-crop-value');const input=make('input');input.type='range';input.min=String(min);input.max=String(max);input.step=String(step);input.value=String(obj[key]??defaultValue);
+      const apply=()=>{obj[key]=Number(input.value);val.textContent=key===zoomKey?Math.round(obj[key]*100)+'%':Math.round(obj[key])+'%';update();touch();};
+      input.oninput=apply;val.textContent=key===zoomKey?Math.round(Number(input.value)*100)+'%':input.value+'%';row.append(span,val,input);block.append(row);
+    }
+    const reset=button('Reset framing',()=>{obj[xKey]=50;obj[yKey]=50;obj[zoomKey]=1;touch();renderFields();},'small');block.append(reset);
+    update();parent.append(block);
+  }
+  function asHeroRecord(entry){return typeof entry==='string'?{src:entry,positionX:50,positionY:50,zoom:1}:entry;}
+  function heroPhotoEditor(photo){
+    const panel=make('div','admin-hero-detail');
+    const url=make('input','admin-input');url.type='url';url.placeholder='Homepage image HTTPS URL';url.value=photo.src||'';
+    url.oninput=()=>{photo.src=url.value.trim();touch();};panel.append(url);
+    cropControls(panel,photo,photo.src,'Homepage image',['positionX','positionY','zoom']);
+    return panel;
+  }
+
   function mediaField(parent,obj,key,label,kind='image',folder='images'){
     const {block,name}=group(parent,label);const box=make('div','admin-media-editor');const current=make('input','admin-input');
     current.id='admin-'+key+'-'+Math.random().toString(36).slice(2);name.htmlFor=current.id;
     current.type='url';current.placeholder='Paste an HTTPS image, PDF or video URL';current.value=obj[key]||'';
     current.addEventListener('input',()=>{obj[key]=current.value.trim();touch();});
+    if(kind==='image')current.addEventListener('change',()=>renderFields());
     const row=make('div','admin-media-row');const file=make('input');file.type='file';file.accept=kind==='pdf'?'.pdf,application/pdf':kind==='video'?'video/mp4,video/webm':'image/jpeg,image/png,image/webp,image/avif,image/gif';
     file.setAttribute('aria-label','Upload '+label);file.addEventListener('change',async()=>{
-      try{const url=await upload(file.files?.[0],folder);if(!url)return;obj[key]=url;current.value=url;touch();renderFields();setStatus('File uploaded — save or publish to keep the change.','unsaved');}
+      try{const url=await upload(file.files?.[0],folder);if(!url)return;obj[key]=url;current.value=url;touch();renderFields();setStatus('File uploaded — save draft, then publish when ready.','unsaved');}
       catch(e){alert('Upload failed: '+(e?.message||e));setStatus('Upload failed','error');}
     });
     row.append(file);if(obj[key] && /^https?:\/\//.test(obj[key])){
       const link=make('a','admin-open-link','Open ↗');link.href=obj[key];link.target='_blank';link.rel='noopener noreferrer';row.append(link);
     }
     box.append(current,row);
-    if(kind==='image' && obj[key]){const im=make('img','admin-thumbnail');im.src=obj[key];im.alt='Current preview';im.loading='lazy';box.append(im);}
+    if(kind==='image' && obj[key]){cropControls(box,obj,obj[key],label);}
+    if(kind==='pdf'){
+      const help=make('p','admin-field-help','Large PDF? In Google Drive: Share → General access → Anyone with the link → Viewer, then copy the FILE link and paste it above. The portfolio will automatically open it in Google Drive’s embedded PDF viewer. Test the link in a private/incognito window. Google may display the owner name.');
+      box.append(help);
+      const test=make('a','admin-open-link','Test PDF link ↗');test.href=obj[key]||'#';test.target='_blank';test.rel='noopener noreferrer';test.onclick=e=>{if(!obj[key]){e.preventDefault();alert('Paste your public Google Drive URL first.');}};box.append(test);
+    }
     block.append(box);
   }
   function rowActions(parent,arr,index,rebuild){
@@ -71,14 +102,19 @@
     return actions;
   }
   function heroImages(){
-    heading('Homepage images','Upload several background images. One is selected on each visit.');
+    heading('Homepage image gallery','Upload multiple images. Each refresh selects another photo (avoiding the last image when possible). Adjust position and zoom per image.');
+    draft.site.hero_images=(draft.site.hero_images||[]).map(asHeroRecord);
     const list=make('div','admin-list');fieldBox.append(list);
-    (draft.site.hero_images||[]).forEach((value,i)=>{
-      const line=make('div','admin-list-row');const image=make('img','admin-list-thumb');image.src=value;image.alt='Homepage image '+(i+1);
-      const span=make('span','admin-list-label','Image '+String(i+1));line.append(image,span,rowActions(line,draft.site.hero_images,i,renderFields));list.append(line);
+    draft.site.hero_images.forEach((photo,i)=>{
+      const line=make('div','admin-list-row');const image=make('img','admin-list-thumb');image.src=photo.src;image.alt='Homepage image '+(i+1);
+      const details=make('div','admin-hero-list-info');const span=make('span','admin-list-label','Homepage image '+String(i+1));details.append(span);
+      const toggle=button('Adjust crop',()=>{const old=line.querySelector('.admin-hero-detail');if(old){old.remove();return;}line.append(heroPhotoEditor(photo));},'small');details.append(toggle);
+      line.append(image,details,rowActions(line,draft.site.hero_images,i,renderFields));list.append(line);
     });
-    const {block}=group(fieldBox,'Add homepage images');const file=make('input');file.type='file';file.multiple=true;file.accept='image/*';
-    file.addEventListener('change',async()=>{try{for(const item of file.files||[]){const url=await upload(item,'home');draft.site.hero_images.push(url);}touch();renderFields();}catch(e){alert(e.message||e)}});block.append(file);
+    const {block}=group(fieldBox,'Upload multiple homepage images');const file=make('input');file.type='file';file.multiple=true;file.accept='image/*';
+    file.addEventListener('change',async()=>{try{const chosen=[...(file.files||[])];for(const item of chosen){const url=await upload(item,'home');draft.site.hero_images.push({src:url,positionX:50,positionY:50,zoom:1});}touch();renderFields();setStatus(`${chosen.length} homepage image(s) added. Save draft / Publish changes.`,'unsaved');}catch(e){alert(e.message||e)}});block.append(file);
+    const {block:linkBlock}=group(fieldBox,'Or add an image URL');
+    const row=make('div','admin-media-row');const input=make('input','admin-input');input.type='url';input.placeholder='https://.../photo.webp';row.append(input,button('Add URL',()=>{if(!/^https:\/\//.test(input.value.trim()))return alert('Enter an HTTPS image URL.');draft.site.hero_images.push({src:input.value.trim(),positionX:50,positionY:50,zoom:1});touch();renderFields();},'small'));linkBlock.append(row);
   }
   function collectionList(kind){
     const key=kind==='academic'?'academic_projects':kind==='professional'?'professional_projects':'creative_collections';
@@ -89,7 +125,10 @@
     items.forEach((item,index)=>{
       const line=make('div','admin-list-row');
       if(item.cover){const image=make('img','admin-list-thumb');image.src=item.cover;image.alt='';line.append(image);}
-      const label=button(item.title||'Untitled',()=>{focused={kind,index};renderFields();navigatePreview(detailUrl(kind,item));},'admin-list-edit');line.append(label,rowActions(line,items,index,renderFields));list.append(line);
+      const label=button(item.title||'Untitled',()=>{focused={kind,index};renderFields();navigatePreview(detailUrl(kind,item));},'admin-list-edit');
+      const actions=rowActions(line,items,index,renderFields);
+      if(kind==='professional')actions.prepend(button('＋ Episode',()=>addEpisode(item,index),'small'));
+      line.append(label,actions);list.append(line);
     });
     fieldBox.append(button('＋ Add '+({academic:'project',professional:'production',creative:'set'}[kind]),()=>{
       const name='Untitled '+(kind==='creative'?'set':'project');let item={slug:safeSlug(name),title:name,subtitle:'',cover:'',tone:defaultTone[kind]};
@@ -113,6 +152,14 @@
     mediaField(fieldBox,item,'pdf','Complete PDF document','pdf','academic');
     fieldBox.append(make('p','admin-field-help','Large PDFs can be hosted externally. Paste a public HTTPS link instead of uploading.'));
   }
+  function addEpisode(show,index){
+    const eps=show.episodes||(show.episodes=[]);
+    const ep={slug:safeSlug('episode'),title:'Untitled episode',subtitle:'Watch episode',description:'',cover:'',video_url:''};
+    eps.push(ep);focused={kind:'professional',index,episode:eps.length-1};
+    touch();renderFields();navigatePreview(path('work/professional/episode/?show='+encodeURIComponent(show.slug)+'&id='+encodeURIComponent(ep.slug)));
+    setStatus('New episode added to draft — enter its title, image & video URL, then Save draft.','unsaved');
+  }
+
   function editProfessional(item){
     heading('Professional production','Edit the production information and selected episodes.');
     textField(fieldBox,item,'title','Production title');textField(fieldBox,item,'subtitle','Production subtitle');
@@ -125,7 +172,7 @@
       const line=make('div','admin-list-row');const edit=button(episode.title||'Untitled episode',()=>{focused.episode=index;renderFields();navigatePreview(path('work/professional/episode/?show='+encodeURIComponent(item.slug)+'&id='+encodeURIComponent(episode.slug)));},'admin-list-edit');
       line.append(edit,rowActions(line,eps,index,renderFields));list.append(line);
     });
-    fieldBox.append(button('＋ Add episode',()=>{eps.push({slug:safeSlug('episode'),title:'Untitled episode',subtitle:'Watch episode',description:'',cover:'',video_url:''});focused.episode=eps.length-1;touch();renderFields();},'admin-add'));
+    fieldBox.append(button('＋ Add episode to '+item.title,()=>addEpisode(item,focused.index),'admin-add'));
   }
   function editEpisode(ep){
     heading('Episode','A large image card will link to this episode’s individual video page.');
@@ -134,6 +181,9 @@
     mediaField(fieldBox,ep,'cover','Episode card image','image','professional');
     textField(fieldBox,ep,'video_url','YouTube / Vimeo URL',false,'https://www.youtube.com/watch?v=…');
     fieldBox.append(make('p','admin-field-help','The video must allow embedding. Use its public URL, not iframe HTML.'));
+    const show=draft.professional_projects[focused.index];
+    fieldBox.append(button('＋ Add another episode',()=>addEpisode(show,focused.index),'admin-add'));
+    fieldBox.append(make('p','admin-field-help','After adding or editing episodes, choose Save draft and then Publish changes.'));
   }
   function editCreative(item){
     heading('Creative set','A single mixed-media set. Add images and videos in any order.');
@@ -142,7 +192,7 @@
     heading('Images and videos','Click Edit on a visual to change its title, file or link.');
     const media=item.media|| (item.media=[]);const list=make('div','admin-list');fieldBox.append(list);
     media.forEach((visual,index)=>{
-      const line=make('div','admin-list-row');if(visual.thumbnail||visual.src){const img=make('img','admin-list-thumb');img.src=visual.thumbnail||visual.src;img.alt='';line.append(img);}
+      const line=make('div','admin-list-row');if(visual.thumbnail||(visual.type!=='video'&&visual.src)){const img=make('img','admin-list-thumb');img.src=visual.thumbnail||visual.src;img.alt='';line.append(img);}
       line.append(button(visual.title||'Untitled visual',()=>{focused.media=index;renderFields();},'admin-list-edit'),rowActions(line,media,index,renderFields));list.append(line);
     });
     fieldBox.append(button('＋ Add image or video',()=>{
@@ -200,12 +250,18 @@
       if(pathName[1]==='creative-explorations')return ['creative',pathName[2]?['creative',pathName[2]==='set'?new URLSearchParams(loc.search).get('id'):pathName[2]]:null];
     }catch(_){}return [section,null];
   }
-  function syncWithPreview(){const [area,id]=routeToSection();section=area;focused=null;
+  function syncWithPreview(){const [area,id]=routeToSection();
+    const prev=focused;
+    section=area;focused=null;
     if(id){if(id[0]==='episode'){const i=draft.professional_projects.findIndex(x=>x.slug===id[1]);if(i>=0){focused={kind:'professional',index:i,episode:draft.professional_projects[i].episodes.findIndex(x=>x.slug===id[2])};}}
       else{const key={academic:'academic_projects',professional:'professional_projects',creative:'creative_collections'}[id[0]];const i=draft[key]?.findIndex(x=>x.slug===id[1]);if(i>=0)focused={kind:id[0],index:i};}}
+    if(!focused && area==='professional' && prev?.kind==='professional' && prev.index>=0 && (!id || id[0]==='episode'))focused=prev;
     renderTabs();renderFields();sendPreview();
   }
-  function renderFields(){if(!draft)return;fieldBox.replaceChildren();
+  function renderFields(){if(!draft)return;
+    const editor=fieldBox.closest('.admin-editor');const scroll=editor?.scrollTop||0;
+    fieldBox.replaceChildren();
+    requestAnimationFrame(()=>{if(editor)editor.scrollTop=scroll;});
     if(focused && focused.kind===section){
       const key={academic:'academic_projects',professional:'professional_projects',creative:'creative_collections'}[section];
       const item=draft[key]?.[focused.index];if(!item){focused=null;renderFields();return;}
@@ -236,15 +292,21 @@
     if(section==='about')editAbout();
     if(section==='contact')editContact();
   }
-  async function saveDraft(){
+  async function saveDraft(automatic=false){
     if(!draft)return false;
-    setStatus('Saving draft…','saving');
-    const {error}=await db.from('portfolio_drafts').upsert({id:'main',content:draft,updated_at:new Date().toISOString()});
-    if(error){setStatus('Save failed','error');alert('Cannot save: '+error.message);return false;}
-    hasChanges=false;lastSaved=JSON.stringify(draft);setStatus('Draft saved','success');return true;
+    clearTimeout(autosaveTimer);
+    const snapshot=JSON.stringify(draft);
+    if(automatic && snapshot===lastSaved)return true;
+    setStatus(automatic?'Auto-saving draft…':'Saving draft…','saving');
+    const {error}=await db.from('portfolio_drafts').upsert({id:'main',content:JSON.parse(snapshot),updated_at:new Date().toISOString()});
+    if(error){setStatus('Save failed','error');if(!automatic)alert('Cannot save: '+error.message);return false;}
+    lastSaved=snapshot;
+    if(JSON.stringify(draft)===snapshot){hasChanges=false;setStatus(automatic?'Draft saved automatically':'Draft saved','success');}
+    else{setStatus('New unsaved changes','unsaved');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveDraft(true),1300);}
+    return true;
   }
   async function publish(){if(!confirm('Publish this draft to your public website?'))return;
-    if(!await saveDraft())return;
+    if(!await saveDraft(false))return;
     setStatus('Publishing…','saving');
     const {error}=await db.from('portfolio_published').upsert({id:'main',content:draft,updated_at:new Date().toISOString()});
     if(error){setStatus('Publish failed','error');alert('Cannot publish: '+error.message);return;}
@@ -271,7 +333,7 @@
     lastSaved=JSON.stringify(draft);setStatus(dr?.content?'Draft ready':'Starting content ready');
     preview.addEventListener('load',syncWithPreview);
     window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===preview.contentWindow&&event.data?.type==='PORTFOLIO_PREVIEW_READY')sendPreview();});
-    $('#admin-save').onclick=saveDraft;$('#admin-publish').onclick=publish;
+    $('#admin-save').onclick=()=>saveDraft(false);$('#admin-publish').onclick=publish;
     $('#admin-signout').onclick=async()=>{if(hasChanges&&!confirm('You have unsaved changes. Log out anyway?'))return;await db.auth.signOut();location.reload();};
     $('#admin-open-live').onclick=()=>window.open(path(), '_blank', 'noopener,noreferrer');
     renderTabs();renderFields();preview.src=defaultUrl('home');
