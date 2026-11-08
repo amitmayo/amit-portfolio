@@ -27,13 +27,156 @@
   function showError(message){errorBox.hidden=false;errorBox.textContent=message;}
   function setStatus(text,mode=''){status.textContent=text;status.dataset.state=mode;}
   const touch=()=>{hasChanges=true;setStatus('Unsaved changes','unsaved');clearTimeout(previewTimer);previewTimer=setTimeout(sendPreview,260);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveDraft(true),1800);};
-  function sendPreview(){if(draft && preview.contentWindow)preview.contentWindow.postMessage({type:'PORTFOLIO_DRAFT_PREVIEW',content:draft},location.origin);}
+  function sendPreview(){if(draft && preview.contentWindow){preview.contentWindow.postMessage({type:'PORTFOLIO_DRAFT_PREVIEW',content:draft},location.origin);if(forceHoverPreview)sendHoverPreview();}}
   function textField(parent,obj,key,label,large=false,placeholder=''){
     const {block,name}=group(parent,label);const input=make(large?'textarea':'input','admin-input');input.id='admin-'+key+'-'+Math.random().toString(36).slice(2);
     name.htmlFor=input.id;input.value=String(obj[key]??'');input.placeholder=placeholder;
     if(large)input.rows=3;else input.type='text';
     input.addEventListener('input',()=>{obj[key]=input.value;touch();});block.append(input);return input;
   }
+  // Text-only formatting; this never stores HTML in Supabase.
+  const Hero = window.PortfolioHero;
+  const hoverChoices=[
+    ['burgundy-veil','Burgundy veil','Original red overlay · unchanged'],
+    ['soft-spotlight','Soft spotlight','Quiet illumination around the text'],
+    ['velvet-gradient','Velvet gradient','A gentle burgundy shift across the image'],
+    ['rose-glow','Rose glow','Subtle warmth near the bottom of the photograph']
+  ];
+  let forceHoverPreview=false;
+  function sendHoverPreview(){
+    if(preview.contentWindow)preview.contentWindow.postMessage({type:'PORTFOLIO_PREVIEW_HOVER',active:forceHoverPreview},location.origin);
+  }
+  function effectEditor(){
+    heading('Background hover effects','Choose how the background responds to the Explore link. The existing burgundy effect is always available.');
+    const wrap=make('div','admin-effect-list');
+    const selected=Hero.effect(draft.site.hero_hover_effect);
+    for(const [id,title,description] of hoverChoices){
+      const option=make('button','admin-effect-option');option.type='button';option.setAttribute('aria-pressed',String(selected===id));option.setAttribute('aria-label',title+' effect');
+      const thumbnail=make('div','admin-effect-thumb');thumbnail.dataset.effect=id;thumbnail.append(make('span','','hey you.'));
+      option.append(thumbnail,make('span','admin-effect-title',title),make('span','admin-effect-description',description));
+      option.onclick=()=>{draft.site.hero_hover_effect=id;forceHoverPreview=true;touch();renderFields();sendPreview();sendHoverPreview();};
+      wrap.append(option);
+    }
+    fieldBox.append(wrap);
+    const actions=make('div','admin-effect-tools');
+    actions.append(button('Preview selected hover',()=>{forceHoverPreview=true;sendHoverPreview();setStatus('Hover preview active — select an effect to compare.');},'small'));
+    actions.append(button('Return to normal image',()=>{forceHoverPreview=false;sendHoverPreview();},'small'));
+    fieldBox.append(actions);
+  }
+  function richEditor(parent,site,plainKey,richKey,label,isHeadline=false,maxLength=450){
+    const {block}=group(parent,label);
+    const area=make('div','admin-rich-editor');
+    const toolbar=make('div','admin-rich-toolbar');toolbar.setAttribute('role','toolbar');toolbar.setAttribute('aria-label','Format '+label);
+    const surface=make('div','admin-rich-surface');surface.contentEditable='true';surface.spellcheck=true;
+    surface.setAttribute('role','textbox');surface.setAttribute('aria-label',label);
+    surface.setAttribute('aria-multiline','false');
+    const raw=isHeadline?Hero.heading(site[richKey]):Hero.normalize(site[richKey],site[plainKey]||'');
+    Hero.write(surface,raw);
+    const buttons=[];
+    const makeTool=(name,caption)=>{
+      const b=make('button','admin-rich-tool',caption);b.type='button';b.title=name;b.setAttribute('aria-label',name);
+      b.setAttribute('aria-pressed','false');b.addEventListener('pointerdown',event=>event.preventDefault());
+      toolbar.append(b);buttons.push(b);return b;
+    };
+    const bold=makeTool('Bold selected text','B');bold.style.fontWeight='bold';
+    const italic=makeTool('Italicize selected text','I');italic.style.fontStyle='italic';
+    const colors=make('div','admin-rich-colors');
+    const colorButtons=[];
+    for(const [id,hex] of Object.entries(Hero.palette)){
+      const b=make('button');b.type='button';b.title=id==='ivory'?'Warm ivory':id==='pearl'?'Pearl white':id==='rose'?'Soft rose':'Burgundy';b.setAttribute('aria-label','Set text color to '+b.title);
+      b.style.setProperty('--swatch',hex);b.addEventListener('pointerdown',event=>event.preventDefault());
+      colors.append(b);colorButtons.push([id,b]);
+    }
+    toolbar.append(colors);
+    const helper=make('p','admin-rich-help','Select a word or phrase above, then choose B, I, or one of the four palette colors. Edits appear immediately in the preview.');
+    const record=()=>{
+      const runs=Hero.fromDOM(surface);
+      if(Hero.flat(runs).length>maxLength){return false;}
+      site[richKey]=runs;site[plainKey]=Hero.flat(runs);
+      touch();return true;
+    };
+    const offsets=()=>{
+      const sel=window.getSelection();if(!sel||!sel.rangeCount)return null;
+      const r=sel.getRangeAt(0);
+      if(!surface.contains(r.startContainer)||!surface.contains(r.endContainer))return null;
+      const prefix=document.createRange();prefix.selectNodeContents(surface);prefix.setEnd(r.startContainer,r.startOffset);
+      const suffix=document.createRange();suffix.selectNodeContents(surface);suffix.setEnd(r.endContainer,r.endOffset);
+      return {start:prefix.toString().length,end:suffix.toString().length};
+    };
+    const restore=(from,to)=>{
+      const walker=document.createTreeWalker(surface,NodeFilter.SHOW_TEXT);
+      const nodes=[];let total=0;
+      while(walker.nextNode()){const item=walker.currentNode;nodes.push({node:item,start:total,end:total+item.textContent.length});total+=item.textContent.length;}
+      if(!nodes.length){surface.focus();return;}
+      const point=(index)=>{const hit=nodes.find(x=>index<=x.end)||nodes[nodes.length-1];return [hit.node,Math.max(0,Math.min(hit.node.length,index-hit.start))];};
+      const range=document.createRange();const [startNode,startOffset]=point(from);const [endNode,endOffset]=point(to);
+      range.setStart(startNode,startOffset);range.setEnd(endNode,endOffset);
+      surface.focus();const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+    };
+    const selectedPieces=(runs,start,end)=>{
+      const pieces=[];let cursor=0;
+      for(const r of runs){const left=Math.max(start-cursor,0),right=Math.min(end-cursor,r.text.length);
+        if(right>left)pieces.push({...r,text:r.text.slice(left,right)});
+        cursor+=r.text.length;
+      }
+      return pieces;
+    };
+    function updateToolbar(){
+      const sel=offsets();const runs=Hero.fromDOM(surface);
+      const pieces=sel&&sel.end>sel.start?selectedPieces(runs,sel.start,sel.end):[];
+      const has=pieces.length>0;
+      bold.disabled=italic.disabled=!has;
+      bold.setAttribute('aria-pressed',String(has&&pieces.every(x=>x.bold)));
+      italic.setAttribute('aria-pressed',String(has&&pieces.every(x=>x.italic)));
+      for(const [id,b] of colorButtons){b.disabled=!has;b.setAttribute('aria-pressed',String(has&&pieces.every(x=>x.color===id)));}
+    }
+    function formatSelection(kind,value){
+      const range=offsets();if(!range||range.start===range.end){helper.textContent='Select the exact text you want to style first.';return;}
+      const runs=Hero.fromDOM(surface);const pieces=selectedPieces(runs,range.start,range.end);
+      const target=kind==='color'?value:!pieces.every(r=>r[kind]);
+      const out=[];let index=0;
+      for(const run of runs){
+        const start=Math.max(0,Math.min(run.text.length,range.start-index));
+        const end=Math.max(0,Math.min(run.text.length,range.end-index));
+        if(start>0)out.push({...run,text:run.text.slice(0,start)});
+        if(end>start)out.push({...run,text:run.text.slice(start,end),[kind]:target});
+        if(end<run.text.length)out.push({...run,text:run.text.slice(Math.max(start,end))});
+        index+=run.text.length;
+      }
+      const normalized=Hero.normalize(out);
+      Hero.write(surface,normalized);
+      record();restore(range.start,range.end);updateToolbar();
+      helper.textContent='Formatting applied. You can select another phrase or keep typing.';
+    }
+    bold.onclick=()=>formatSelection('bold');italic.onclick=()=>formatSelection('italic');
+    for(const [id,b] of colorButtons)b.onclick=()=>formatSelection('color',id);
+    surface.addEventListener('input',()=>{
+      if(Hero.flat(Hero.fromDOM(surface)).length>maxLength){
+        Hero.write(surface,Hero.normalize(site[richKey],site[plainKey]||''));
+        helper.textContent='Maximum '+maxLength+' characters.';return;
+      }
+      record();updateToolbar();
+    });
+    surface.addEventListener('paste',event=>{
+      event.preventDefault();const clipboard=event.clipboardData?.getData('text/plain')||'';
+      const text=clipboard.replace(/[\r\n]+/g,' ');
+      const sel=window.getSelection();if(!sel?.rangeCount)return;
+      const range=sel.getRangeAt(0);if(!surface.contains(range.commonAncestorContainer))return;
+      range.deleteContents();const node=document.createTextNode(text);range.insertNode(node);
+      range.setStartAfter(node);range.collapse(true);sel.removeAllRanges();sel.addRange(range);
+      surface.dispatchEvent(new Event('input',{bubbles:true}));
+    });
+    surface.addEventListener('keydown',event=>{
+      if(event.key==='Enter'){event.preventDefault();return;}
+      if((event.ctrlKey||event.metaKey)&&['b','i'].includes(event.key.toLowerCase())){
+        event.preventDefault();formatSelection(event.key.toLowerCase()==='b'?'bold':'italic');
+      }
+    });
+    for(const e of ['mouseup','keyup','focus','select'])surface.addEventListener(e,updateToolbar);
+    area.append(toolbar,surface,helper);block.append(area);updateToolbar();
+    return surface;
+  }
+
   async function upload(file,folder){
     if(!file)return null;
     if(file.size>50*1024*1024)throw new Error('Supabase Free Storage is limited to 50 MB per file. For large PDFs, paste a Google Drive share link with General access → Anyone with the link → Viewer, or use an optimized PDF hosted elsewhere.');
@@ -326,9 +469,12 @@
       return;
     }
     if(section==='home'){
-      heading('Homepage','The main introduction and your rotating background images.');
-      textField(fieldBox,draft.site,'hero_intro','Introduction',true);
-      textField(fieldBox,draft.site,'homepage_button','Explore button text');
+      heading('Homepage','Fine-tune the introduction, typography and image reveal without changing the rest of the site.');
+      heading('Homepage typography','Highlight any words inside the editor and apply bold, italic or an approved palette color.');
+      richEditor(fieldBox,draft.site,'hero_heading','hero_heading_rich','Homepage headline',true,85);
+      richEditor(fieldBox,draft.site,'hero_intro','hero_intro_rich','Homepage introduction',false,450);
+      richEditor(fieldBox,draft.site,'homepage_button','homepage_button_rich','Explore link text',false,80);
+      effectEditor();
       if(!Array.isArray(draft.site.hero_images))draft.site.hero_images=[];heroImages();
     }
     if(section==='work')editWork();

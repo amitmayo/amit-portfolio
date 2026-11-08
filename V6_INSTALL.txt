@@ -1,0 +1,38 @@
+AMIT PORTFOLIO — V6 HOMEPAGE CONTROLS
+
+What changes:
+- Preserves the existing burgundy veil and adds 3 optional refined hover effects:
+  soft spotlight, velvet gradient and rose glow.
+- Adds Admin Mode controls to select the homepage hover effect and preview it.
+- Adds rich text formatting for the homepage headline, introduction and Explore link:
+  select words, then apply bold, italic or one of 4 approved palette colors.
+- Preserves the original typing animation and honors reduced-motion preferences.
+- Saves text formatting as safe structured text segments (not HTML), with
+  fallback support for existing drafts and published text.
+
+Installation (no terminal required):
+1. Extract the ZIP.
+2. Open https://github.com/amitmayo/amit-portfolio
+3. Choose Add file > Upload files.
+4. Upload build.py and the assets/ folder's files, keeping paths intact.
+   The new assets/hero-format.js MUST be uploaded alongside the changes.
+5. Commit changes on main.
+6. Check https://github.com/amitmayo/amit-portfolio/actions for a green build.
+7. Refresh /dan/ (Cmd+Shift+R), sign in, choose Home.
+8. Set effects and typography, Save draft, then Publish changes.
+
+No Supabase schema updates, new secrets, Cloudflare changes or domain changes.
+Existing project data and image/PDF/video files remain untouched.
+
+Compatibility:
+- Based on the current GitHub main source verified on 8 November 2026.
+- Replaces these existing files:
+  build.py, assets/app.js, assets/live.js, assets/admin.js,
+  assets/style.css, assets/admin.css
+- Adds one NEW file: assets/hero-format.js
+- Do not upload a ZIP itself; unzip it first.
+- Do not replace config/backend.json or content/site.json.
+
+If changes look missing, use Cmd+Shift+R and confirm GitHub Actions success.
+If the preview area is blank inside the offline test screenshot, that reflects
+its test environment; the real Admin Mode iframe loads your live website.

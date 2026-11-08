@@ -57,44 +57,70 @@
     }
   }
 
-  // Intro starts as gentle typing; the caret remains after the last character.
-  // Reduced-motion visitors see the full text immediately.
+  // Accessible homepage typing that preserves owner-selected emphasis and palette colors.
+  // All rendered segments come from a fixed-format, text-only model.
+  const headline=document.querySelector('.hero-title');
   const intro=document.querySelector('.hero-intro');
-  if(intro){
-    const saved=intro.textContent;
-    const heading=document.querySelector('.hero-title');
-    let activeText=saved,timer=null,token=0;
+  const label=document.querySelector('.explore-label');
+  const heroFormat=window.PortfolioHero;
+  if(headline && intro && label && heroFormat){
+    const fallbackHeading=heroFormat.heading();
+    let currentHeading=headline.querySelector('[data-hero-run]') ? heroFormat.fromDOM(headline) : fallbackHeading;
+    let currentIntro=heroFormat.fromDOM(intro,intro.textContent||'');
+    let currentButton=heroFormat.fromDOM(label,label.textContent||"Let's explore");
+    let token=0,runTimer=null;
     const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const editorPreview=new URLSearchParams(location.search).has('portfolio_preview');
     intro.classList.add('typewriter-intro');
-    const setText=(text,fromData=false)=>{
-      const next=String(text||'');
-      if(fromData && next===activeText)return;
-      activeText=next;token++;if(timer)clearTimeout(timer);
-      if(reduced){intro.textContent=next;intro.classList.add('typing-done');return;}
-      intro.textContent='';intro.classList.remove('typing-done');
-      let i=0;const id=token;
-      const tick=()=>{if(id!==token)return;intro.textContent=next.slice(0,++i);
-        if(i<next.length)timer=setTimeout(tick,/[,.]/.test(next[i-1])?180:26);
-        else intro.classList.add('typing-done');
-      };
-      timer=setTimeout(tick,380);
+    const paint=()=>{
+      heroFormat.write(headline,currentHeading);
+      heroFormat.write(intro,currentIntro);
+      heroFormat.write(label,currentButton);
+      headline.setAttribute('aria-label',heroFormat.flat(currentHeading));
+      intro.classList.add('typing-done');
     };
-    window.PortfolioTyping={setText};
-    if(heading&&!reduced){
-      const plain='hey ',italic='you.';
-      heading.setAttribute('aria-label','hey you.');
-      const first=document.createElement('span'),em=document.createElement('em');
-      first.setAttribute('aria-hidden','true');em.setAttribute('aria-hidden','true');heading.replaceChildren(first,em);
-      let n=0;
-      const titleTick=()=>{
-        n++;
-        first.textContent=plain.slice(0,Math.min(n,plain.length));
-        if(n>plain.length)em.textContent=italic.slice(0,n-plain.length);
-        if(n<plain.length+italic.length)setTimeout(titleTick,95);
-        else setText(saved);
+    const play=()=>{
+      token++;const id=token;if(runTimer)clearTimeout(runTimer);
+      heroFormat.write(label,currentButton);
+      if(reduced){paint();return;}
+      let h=0,t=0;
+      intro.classList.remove('typing-done');
+      headline.setAttribute('aria-label',heroFormat.flat(currentHeading));
+      headline.replaceChildren();intro.replaceChildren();
+      const headingText=heroFormat.flat(currentHeading);
+      const introText=heroFormat.flat(currentIntro);
+      const introTick=()=>{
+        if(id!==token)return;
+        t=Math.min(t+1,introText.length);
+        heroFormat.write(intro,heroFormat.portion(currentIntro,t));
+        if(t<introText.length){
+          const pause=/[,.!?]/.test(introText[t-1])?150:24;
+          runTimer=setTimeout(introTick,pause);
+        }else intro.classList.add('typing-done');
       };
-      setTimeout(titleTick,260);
-    }else setText(saved);
+      const headingTick=()=>{
+        if(id!==token)return;
+        h=Math.min(h+1,headingText.length);
+        heroFormat.write(headline,heroFormat.portion(currentHeading,h));
+        if(h<headingText.length)runTimer=setTimeout(headingTick,92);
+        else runTimer=setTimeout(introTick,280);
+      };
+      runTimer=setTimeout(headingTick,260);
+    };
+    window.PortfolioTyping={
+      setContent(value,fromData=false){
+        const nextHeading=heroFormat.heading(value?.headingRuns);
+        const nextIntro=heroFormat.normalize(value?.introRuns,value?.introText||'');
+        const nextButton=heroFormat.normalize(value?.buttonRuns,value?.buttonText||"Let's explore");
+        const next=JSON.stringify([nextHeading,nextIntro,nextButton]);
+        if(next===JSON.stringify([currentHeading,currentIntro,currentButton]))return;
+        currentHeading=nextHeading;currentIntro=nextIntro;currentButton=nextButton;
+        if(fromData&&editorPreview){token++;if(runTimer)clearTimeout(runTimer);paint();}
+        else play();
+      },
+      setText(text,fromData=false){this.setContent({headingRuns:currentHeading,introText:text,buttonRuns:currentButton},fromData);}
+    };
+    if(editorPreview)paint();else play();
   }
 
   // Browser-native PDF embeds already provide page and zoom controls. This expands the frame.

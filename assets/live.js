@@ -101,10 +101,22 @@
     const sets = data.creative_collections||[];
     let markup='';
     if (type==='home') {
-      const title = main.querySelector('.hero-intro');
-      if (title) title.textContent = data.site.hero_intro||'';
-      const link = main.querySelector('.explore-button');
-      if (link) link.firstChild.textContent = data.site.homepage_button||"Let's explore";
+      const hero=main.querySelector('.hero');
+      if(hero)hero.dataset.hoverEffect=window.PortfolioHero?.effect(data.site.hero_hover_effect)||'burgundy-veil';
+      if(window.PortfolioTyping?.setContent){
+        window.PortfolioTyping.setContent({
+          headingRuns:data.site.hero_heading_rich,
+          introRuns:data.site.hero_intro_rich,
+          introText:data.site.hero_intro||'',
+          buttonRuns:data.site.homepage_button_rich,
+          buttonText:data.site.homepage_button||"Let's explore"
+        },true);
+      } else {
+        const title=main.querySelector('.hero-intro');
+        if(title)title.textContent=data.site.hero_intro||'';
+        const label=main.querySelector('.explore-label');
+        if(label)label.textContent=data.site.homepage_button||"Let's explore";
+      }
       const imgs = (data.site.hero_images||[]).map(entry => typeof entry==='string' ? {src:entry} : entry).filter(entry=>entry&&asset(entry.src));
       const bg=main.querySelector('[data-hero-background]');
       if(bg){
@@ -269,6 +281,7 @@
     if(window.parent===window || event.origin!==location.origin)return;
     if(event.source!==window.parent)return;
     if(event.data?.type==='PORTFOLIO_DRAFT_PREVIEW' && event.data.content)render(event.data.content);
+    if(event.data?.type==='PORTFOLIO_PREVIEW_HOVER'){document.querySelector('.hero')?.classList.toggle('is-revealed',event.data.active===true);}
   });
   const configUrl=p('assets/backend.json');
   Promise.all([fetch(configUrl,{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),fetch(p('assets/initial-content.json')).then(r=>r.ok?r.json():null).catch(()=>null)]).then(async ([backend,fallback])=>{

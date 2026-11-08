@@ -97,6 +97,7 @@ def page(title: str, description: str, body: str, *, active: str = "", homepage:
 <main id="main">{body}</main>
 {footer() if not homepage else ''}
 {extra_script}
+<script src="{uri('assets/hero-format.js')}" defer></script>
 <script src="{uri('assets/app.js')}" defer></script>
 <script src="{uri('assets/live.js')}" defer></script>
 </body></html>'''
@@ -150,11 +151,11 @@ def back(text: str, target: str) -> str:
 def home() -> None:
     images = [{**entry,'src':media_uri(entry['src'])} if isinstance(entry,dict) else {'src':media_uri(entry)} for entry in SITE.get('hero_images',[]) if has_media(entry.get('src','') if isinstance(entry,dict) else entry)]
     script_json = json.dumps(images, ensure_ascii=False).replace("<", "\\u003c")
-    body = f'''<section class="hero" aria-label="Introduction">
+    body = f'''<section class="hero" aria-label="Introduction" data-hover-effect="burgundy-veil">
       <div class="hero-background" data-hero-background></div><div class="hero-overlay"></div><div class="hero-texture"></div>
       <div class="hero-inner"><div class="hero-copy reveal">
-      <h1 class="hero-title">hey <em>you.</em></h1><p class="hero-intro">{e(SITE['hero_intro'])}</p>
-      <a class="explore-button" href="{uri('work/')}" data-hero-reveal>{e(SITE['homepage_button'])}<span class="minimal-arrow">{icon('arrow', 14)}</span></a>
+      <h1 class="hero-title" aria-label="hey you.">hey <em>you.</em></h1><p class="hero-intro">{e(SITE['hero_intro'])}</p>
+      <a class="explore-button" href="{uri('work/')}" data-hero-reveal><span class="explore-label">{e(SITE['homepage_button'])}</span><span class="minimal-arrow">{icon('arrow', 14)}</span></a>
       </div></div></section>'''
     write("", page(SITE["name"], "Creative projects and selected professional work by Amit Dahan Mayo.", body, homepage=True, extra_script=f'<script>window.PORTFOLIO_HERO_IMAGES={script_json};</script>'))
 
@@ -382,6 +383,7 @@ def admin_page() -> None:
 <div class="admin-section-tabs" id="admin-section-tabs"></div><div class="admin-editor-fields" id="admin-editor-fields"></div></aside></div>
 </section></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="{uri('assets/hero-format.js')}" defer></script>
 <script src="{uri('assets/admin.js')}" defer></script></body></html>'''
     write('dan', html_page)
 
