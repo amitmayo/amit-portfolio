@@ -1,24 +1,18 @@
-AMIT PORTFOLIO — VERSION 7 HOTFIX
+AMIT PORTFOLIO — HOMEPAGE RICH TEXT FIX
 
-Fixes:
-- Bold, italic, and preapproved text color formatting in the /dan/ homepage editor.
-- Selection persistence while clicking toolbar buttons, plus a Select all text button.
-- Deep Burgundy #944A5C added as an additional palette color; existing Light Burgundy #C17E8D preserved.
-- Admin editor now visibly renders all palette colors.
-- Mobile and tablet: open selected PDF in the device's native PDF viewer via a large View selected PDF link, rather than relying on unreliable in-page PDF embedding on mobile. Desktop PDF viewer remains embedded.
-- Multiple-PDF switching builds a fresh iframe and remembers the selected document during preview refreshes.
+Bug fixed:
+The homepage originally loaded rich text from the Supabase content model, then a legacy plain-text update overwrote the formatting. This caused selected words such as "Amit" to show as bold/colored in the Admin editor but not in the live homepage.
 
-INSTALL WITHOUT TERMINAL:
-1. Unzip this update.
-2. Open https://github.com/amitmayo/amit-portfolio
-3. Add file → Upload files; select the files/folders INSIDE this ZIP, preserving the assets directory.
-4. Commit to main.
-5. Confirm Deploy Portfolio succeeded in https://github.com/amitmayo/amit-portfolio/actions
-6. Hard refresh the site with Cmd+Shift+R (or close/reopen on phone).
+Change:
+Replace assets/app.js with the included fixed version. The legacy text update now preserves existing formatting if the wording has not changed. No design, content or Supabase changes are needed.
 
-IMPORTANT:
-- Do not upload the ZIP itself as a repository file.
-- Do not remove or replace content/site.json or config/backend.json.
-- No changes to Supabase, Cloudflare or your stored PDFs are required.
-- Click Save draft and Publish changes from /dan/ after formatting text.
-- The native PDF link requires the file's public URL to work directly, which is independent of the viewer UI.
+INSTALL THROUGH GITHUB (NO TERMINAL)
+1. Open https://github.com/amitmayo/amit-portfolio/tree/main/assets
+2. Choose Add file > Upload files.
+3. Drag the included app.js into GitHub so it replaces assets/app.js (do not upload INSTALL.txt).
+4. Commit changes to main.
+5. Watch https://github.com/amitmayo/amit-portfolio/actions for Deploy Portfolio success.
+6. Refresh the homepage and /dan/ Admin Mode (Cmd + Shift + R).
+7. In /dan/, apply formatting, Save draft, then Publish changes.
+
+Tested with a real browser simulation (Chromium): formatting of the word Amit is now preserved and renders with font-weight 700 and deep burgundy RGB(148, 74, 92). The existing build and other website files remain untouched.

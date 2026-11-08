@@ -118,7 +118,12 @@
         if(fromData&&editorPreview){token++;if(runTimer)clearTimeout(runTimer);paint();}
         else play();
       },
-      setText(text,fromData=false){this.setContent({headingRuns:currentHeading,introText:text,buttonRuns:currentButton},fromData);}
+      setText(text,fromData=false){
+        // Older homepage updates still call setText after the rich content is set.
+        // If the text has not changed, preserve its existing bold, italic and color runs.
+        if(heroFormat.flat(currentIntro)===String(text??''))return;
+        this.setContent({headingRuns:currentHeading,introText:text,buttonRuns:currentButton},fromData);
+      }
     };
     if(editorPreview)paint();else play();
   }
