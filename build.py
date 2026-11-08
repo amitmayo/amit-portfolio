@@ -82,7 +82,7 @@ def footer() -> str:
 def page(title: str, description: str, body: str, *, active: str = "", homepage: bool = False, extra_script: str = "") -> str:
     file_title = f"{title} — {SITE['name']}" if title != SITE['name'] else SITE['name']
     return f'''<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en" data-site-base="{e(BASE)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark"><meta name="theme-color" content="#171719">
 <meta name="description" content="{e(description)}"><title>{e(file_title)}</title>
 <link rel="icon" href="{uri('assets/favicon.svg')}" type="image/svg+xml">
@@ -98,6 +98,7 @@ def page(title: str, description: str, body: str, *, active: str = "", homepage:
 {footer() if not homepage else ''}
 {extra_script}
 <script src="{uri('assets/app.js')}" defer></script>
+<script src="{uri('assets/live.js')}" defer></script>
 </body></html>'''
 
 
@@ -316,6 +317,47 @@ def contact() -> None:
     write('contact',page('Contact','Get in touch with Amit Dahan Mayo.',body,active='contact'))
 
 
+def admin_page() -> None:
+    """Discreet owner-only portfolio editing entry point."""
+    html_page = f'''<!doctype html><html lang="en" data-site-base="{e(BASE)}"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive"><meta name="theme-color" content="#171719">
+<title>Portfolio Studio</title><link rel="icon" href="{uri('assets/favicon.svg')}" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Newsreader:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{uri('assets/style.css')}"><link rel="stylesheet" href="{uri('assets/admin.css')}">
+</head><body class="portfolio-admin"><main id="admin-root">
+<section class="admin-login" id="admin-login"><div class="login-inner">
+<p class="admin-kicker">AMIT DAHAN MAYO / PORTFOLIO STUDIO</p>
+<h1>Welcome back.</h1><p class="admin-hint">Sign in to edit your portfolio.</p>
+<form id="admin-login-form"><label>Email<input name="email" type="email" autocomplete="username" required></label>
+<label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+<button class="admin-primary" type="submit">Sign in <span aria-hidden="true">↗</span></button></form>
+<p id="admin-login-error" role="alert" class="admin-error" hidden></p>
+<p id="admin-setup" class="admin-hint" hidden>The portfolio backend has not been connected yet. Follow the setup instructions in the project README.</p>
+<a href="{uri()}">← Back to portfolio</a></div></section>
+<section class="admin-shell" id="admin-shell" hidden>
+<header class="admin-topbar"><div><strong>AMIT DAHAN MAYO</strong><span>/ PORTFOLIO STUDIO</span></div>
+<div class="admin-actions"><span id="admin-status" role="status">Draft loaded</span>
+<button type="button" id="admin-save">Save draft</button><button type="button" class="admin-primary" id="admin-publish">Publish changes</button>
+<button type="button" id="admin-signout">Log out</button></div></header>
+<div class="admin-workspace"><section class="admin-preview-area" aria-label="Live website preview">
+<div class="admin-preview-top"><span>WEBSITE PREVIEW</span><button id="admin-open-live" type="button">Open public website ↗</button></div>
+<iframe id="admin-preview" title="Your portfolio website preview" src="{uri()}?portfolio_preview=1"></iframe></section>
+<aside class="admin-editor" aria-label="Content editor"><div class="admin-editor-top"><h2>Edit portfolio</h2><p>Changes are private until you publish.</p></div>
+<div class="admin-section-tabs" id="admin-section-tabs"></div><div class="admin-editor-fields" id="admin-editor-fields"></div></aside></div>
+</section></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="{uri('assets/admin.js')}" defer></script></body></html>'''
+    write('dan', html_page)
+
+
+def dynamic_page(route: str, page_title: str, page_description: str) -> None:
+    """Stable page URLs for projects created later in the CMS (no rebuild needed)."""
+    content = f'<div class="page-shell content-frame"><div class="page-intro"><p class="eyebrow">Portfolio</p><h1 class="display-title small">{e(page_title)}</h1><p class="lead">Loading project…</p></div></div>'
+    write(route, page(page_title, page_description, content, active='work'))
+
+
 def not_found() -> None:
     body=f'''<div class="page-shell content-frame">{intro('404 / Not found','Lost your <em>way?</em>',"This page doesn't seem to exist. Let's get you back somewhere good.")}{back('Go home','')}</div>'''
     (OUTPUT/'404.html').write_text(page('Page not found','Page not found',body),encoding='utf-8')
@@ -327,7 +369,11 @@ def main() -> None:
     OUTPUT.mkdir()
     shutil.copytree(ROOT/'assets', OUTPUT/'assets')
     shutil.copytree(ROOT/'media', OUTPUT/'media')
-    home();work();academic();professional();creative();about();contact()
+    (OUTPUT/'assets'/'backend.json').write_text((ROOT/'config'/'backend.json').read_text(encoding='utf-8'),encoding='utf-8')
+    (OUTPUT/'assets'/'initial-content.json').write_text((ROOT/'content'/'site.json').read_text(encoding='utf-8'),encoding='utf-8')
+    home();work();academic();professional();creative();about();contact();admin_page()
+    for route,title in (('work/academic/project','Academic Project'),('work/professional/show','Professional Project'),('work/professional/episode','Selected Episode'),('work/creative-explorations/set','Creative Exploration')):
+        dynamic_page(route, title, 'Selected work by Amit Dahan Mayo.')
     for info in CONFIG['academic_projects']:
         academic_project(info)
     for info in CONFIG['professional_projects']:
