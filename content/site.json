@@ -1,0 +1,52 @@
+{
+  "site": {
+    "name": "Amit Dahan Mayo",
+    "email": "amitma2009@gmail.com",
+    "linkedin": "https://www.linkedin.com/in/amitdm23/",
+    "location": "Prague, Czechia",
+    "hero_intro": "I'm Amit. I like connecting the dots between creativity, strategy, marketing and design — then turning ideas into something real.",
+    "hero_images": [],
+    "homepage_button": "Let's explore"
+  },
+  "categories": {
+    "academic": {"title": "Academic Work", "subtitle": "Ideas, research, and the work that shaped my thinking.", "cover": "", "tone": "clay"},
+    "professional": {"title": "Professional Work", "subtitle": "Stories I helped bring to the screen.", "cover": "", "tone": "cobalt"},
+    "creative": {"title": "Creative Explorations", "subtitle": "Things I make, capture, and experiment with.", "cover": "", "tone": "rose"}
+  },
+  "academic_intro": "I studied Fashion Management, Communication and Media at Istituto Marangoni Milano, graduating in 2026 with a final grade of 110/110. Over three years, I explored the space between creativity, strategy, communication and design — here are some of the projects I created along the way.",
+  "academic_projects": [
+    {"slug": "the-power-is-in-your-hands", "title": "The Power Is in Your Hands", "subtitle": "Final Thesis", "description": "An Apple 2035 concept bringing product innovation, luxury brand strategy, and a communication campaign together around the Apple Ring.", "cover": "", "pdf": "", "tone": "gold"},
+    {"slug": "jardin-de-valli", "title": "Jardin de Valli", "subtitle": "Third-Year Project", "description": "An academic project developed during my third year at Istituto Marangoni Milano.", "cover": "", "pdf": "", "tone": "sage"},
+    {"slug": "circle-of-life", "title": "Circle of Life", "subtitle": "Third-Year Project", "description": "A third-year academic project exploring ideas through fashion, creativity, and communication.", "cover": "", "pdf": "", "tone": "plum"},
+    {"slug": "jacquemus-amour-dete", "title": "JACQUEMUS — Amour d'Été Campaign", "subtitle": "Second-Year Project", "description": "A second-year campaign project developed around the Jacquemus brand.", "cover": "", "pdf": "", "tone": "sand"},
+    {"slug": "czech-advertising-industry-report", "title": "Advertising Agencies Industry in Czech Republic — Business Report", "subtitle": "Second-Year Project", "description": "A business report studying the Czech advertising market, its industry landscape, and key players.", "cover": "", "pdf": "", "tone": "stone"},
+    {"slug": "loro-piana-roots", "title": "Loro Piana — The Roots Capsule Collection", "subtitle": "Second-Year Project", "description": "A capsule collection project combining Loro Piana brand analysis, collection development, and a marketing and launch strategy.", "cover": "", "pdf": "", "tone": "olive"},
+    {"slug": "sacai-wa", "title": "Sacai — 和 (Wa) F/W 24 Collection", "subtitle": "First-Year Project", "description": "A first-year academic collection concept developed around Sacai and the idea of Wa.", "cover": "", "pdf": "", "tone": "ink"}
+  ],
+  "professional_projects": [
+    {
+      "slug": "zman-emet",
+      "title": "Zman Emet",
+      "subtitle": "Investigative Documentary Series · Seasons 6–8",
+      "description": "An investigative documentary series produced for KAN 11. During my three seasons with the show, multiple episodes I worked on received awards for Best Investigative Reporting.",
+      "role": "Post-Production Manager · 2021–2023",
+      "responsibilities": "I managed the post-production department and editing teams, coordinated between production stages, oversaw archive and footage licensing, and worked with the executive producer to deliver episodes aligned with the editorial vision.",
+      "cover": "", "tone": "cobalt", "episodes": []
+    },
+    {
+      "slug": "tiberias-under-the-red-line",
+      "title": "Tiberias — Under the Red Line",
+      "subtitle": "Five-Episode Documentary Series",
+      "description": "A five-episode documentary series for KAN 11, recognized with the Israeli Best Documentary Show award for 2023.",
+      "role": "Post-Production Supervisor · March–August 2023",
+      "responsibilities": "I coordinated with the creator, director, technical teams and editors, managed editing schedules and archival research, and oversaw episode deliveries for broadcaster review and approval.",
+      "cover": "", "tone": "steel", "episodes": []
+    }
+  ],
+  "creative_collections": [
+    {"slug": "photography", "title": "Photography", "subtitle": "Images & observations", "cover": "", "tone": "sand", "media": []},
+    {"slug": "ai-visual-studies", "title": "AI & Visual Studies", "subtitle": "Digital experiments", "cover": "", "tone": "plum", "media": []},
+    {"slug": "film-and-editing", "title": "Film & Editing", "subtitle": "Moving image", "cover": "", "tone": "cobalt", "media": []},
+    {"slug": "collection-design", "title": "Collection Design", "subtitle": "Ideas in form", "cover": "", "tone": "sage", "media": []}
+  ]
+}
