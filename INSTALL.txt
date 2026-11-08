@@ -1,0 +1,24 @@
+AMIT PORTFOLIO — VERSION 7 HOTFIX
+
+Fixes:
+- Bold, italic, and preapproved text color formatting in the /dan/ homepage editor.
+- Selection persistence while clicking toolbar buttons, plus a Select all text button.
+- Deep Burgundy #944A5C added as an additional palette color; existing Light Burgundy #C17E8D preserved.
+- Admin editor now visibly renders all palette colors.
+- Mobile and tablet: open selected PDF in the device's native PDF viewer via a large View selected PDF link, rather than relying on unreliable in-page PDF embedding on mobile. Desktop PDF viewer remains embedded.
+- Multiple-PDF switching builds a fresh iframe and remembers the selected document during preview refreshes.
+
+INSTALL WITHOUT TERMINAL:
+1. Unzip this update.
+2. Open https://github.com/amitmayo/amit-portfolio
+3. Add file → Upload files; select the files/folders INSIDE this ZIP, preserving the assets directory.
+4. Commit to main.
+5. Confirm Deploy Portfolio succeeded in https://github.com/amitmayo/amit-portfolio/actions
+6. Hard refresh the site with Cmd+Shift+R (or close/reopen on phone).
+
+IMPORTANT:
+- Do not upload the ZIP itself as a repository file.
+- Do not remove or replace content/site.json or config/backend.json.
+- No changes to Supabase, Cloudflare or your stored PDFs are required.
+- Click Save draft and Publish changes from /dan/ after formatting text.
+- The native PDF link requires the file's public URL to work directly, which is independent of the viewer UI.

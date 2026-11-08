@@ -193,3 +193,20 @@ body{font-family:var(--font-editorial);font-size:18px;font-weight:400;letter-spa
 .explore-label{display:inline}
 .explore-label .hero-rich-run{font-family:inherit}
 .hero-title .hero-rich-run.is-bold.is-italic{font-weight:650}
+
+/* V7: same brand burgundy as the original palette, now selectable for homepage text. */
+.hero-rich-run[data-hero-color="burgundyDeep"]{color:#944a5c}
+/* Mobile readers handle large PDF documents more reliably in their native viewer.
+   The desktop embedded PDF presentation is intentionally unchanged. */
+.pdf-mobile-panel{display:none}
+@media(max-width:900px){
+  .pdf-block .pdf-viewport{display:none}
+  .pdf-block .pdf-mobile-panel{display:flex;flex-direction:column;gap:19px;align-items:flex-start;justify-content:center;padding:29px 22px 35px;background:linear-gradient(135deg,#28232a,#1b1a1f);border-top:1px solid var(--border);min-height:218px}
+  .pdf-mobile-panel p{font-size:13px;line-height:1.55;max-width:440px;color:var(--muted)}
+  .pdf-mobile-panel .pdf-mobile-title{font-family:'Newsreader',Georgia,serif;font-size:24px;line-height:1.15;color:var(--ink)}
+  .pdf-mobile-panel .pdf-mobile-button{display:inline-flex;gap:12px;align-items:center;border:1px solid #b67b8b;padding:13px 18px;font-family:'Courier Prime',monospace;font-size:13px;color:var(--ink);text-decoration:none;background:rgba(148,74,92,.18)}
+  .pdf-mobile-panel .pdf-mobile-button:focus-visible,.pdf-mobile-panel .pdf-mobile-button:hover{background:rgba(148,74,92,.32)}
+  .pdf-block .pdf-actions [data-live-pdf-fullscreen],.pdf-block .pdf-actions [data-pdf-fullscreen]{display:none}
+  .pdf-block .pdf-actions a{font-size:12px}
+  .pdf-block .pdf-actions a .label{display:inline}
+}

@@ -56,6 +56,7 @@
     return ['unknown'];
   };
   let lastSelectedHero=null;
+  const selectedPdfByProject=new Map();
   window.PortfolioLive = {getRoute,asset,render};
 
   const iframeSafe = url => {
@@ -155,11 +156,14 @@
       const x=academics.find(v=>v.slug===slug);if(!x) return renderNotFound(main);
       const documentRecords=Array.isArray(x.pdfs)?x.pdfs:(x.pdf?[{title:'Project document',url:x.pdf}]:[]);
       const documents=documentRecords.map((d,i)=>({title:String(d.title||`Document ${i+1}`),link:pdfLink(d.url||d.src||'')})).filter(d=>d.link.embed);
-      const first=documents[0];
-      const chooser=documents.length>1?`<div class="pdf-switcher" aria-label="Choose a project document">${documents.map((d,i)=>`<button type="button" class="pdf-switch ${i===0?'active':''}" data-live-pdf-select data-pdf-embed="${esc(d.link.embed)}" data-pdf-open="${esc(d.link.open)}" data-pdf-title="${esc(d.title)}" aria-pressed="${i===0}">${esc(d.title)}</button>`).join('')}</div>`:'';
-      const doc=first?`<div class="pdf-viewport"><iframe data-live-pdf-frame title="${esc(x.title)} — ${esc(first.title)}" src="${esc(first.link.embed)}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`:`<div class="pdf-empty">${icon('file')}<strong>Full project coming soon</strong><p>The PDFs will appear here once they're added to the portfolio.</p></div>`;
+      const remembered=selectedPdfByProject.get(slug);
+      const index=Math.max(0,documents.findIndex(d=>d.link.open===remembered));
+      const first=documents[index];
+      const chooser=documents.length>1?`<div class="pdf-switcher" aria-label="Choose a project document">${documents.map((d,i)=>`<button type="button" class="pdf-switch ${i===index?'active':''}" data-live-pdf-select data-pdf-embed="${esc(d.link.embed)}" data-pdf-open="${esc(d.link.open)}" data-pdf-title="${esc(d.title)}" aria-pressed="${i===index}">${esc(d.title)}</button>`).join('')}</div>`:'';
+      const doc=first?`<div class="pdf-viewport"><iframe data-live-pdf-frame title="${esc(x.title)} — ${esc(first.title)}" src="${esc(first.link.embed)}" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`:`<div class="pdf-empty">${icon('file')}<strong>Full project coming soon</strong><p>The PDFs will appear here once they're added to the portfolio.</p></div>`;
+      const mobile=first?`<div class="pdf-mobile-panel"><span class="pdf-mobile-title" data-live-pdf-mobile-title>${esc(first.title)}</span><p>For the complete document, open the PDF in your phone’s PDF viewer. You can zoom and browse all pages there.</p><a class="pdf-mobile-button" data-live-pdf-mobile-open href="${esc(first.link.open)}" target="_blank" rel="noopener noreferrer">View selected PDF ↗</a></div>`:'';
       const actions=first?`<a data-live-pdf-open href="${esc(first.link.open)}" target="_blank" rel="noopener noreferrer">Open document ↗</a><button type="button" data-live-pdf-fullscreen>Fullscreen</button>`:'';
-      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover,x)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document${documents.length>1?'s':''}</span></div><div class="pdf-actions">${actions}</div></div>${chooser}${doc}</section>`+back('All academic projects','work/academic/'));
+      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover,x)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document${documents.length>1?'s':''}</span></div><div class="pdf-actions">${actions}</div></div>${chooser}${doc}${mobile}</section>`+back('All academic projects','work/academic/'));
       document.title=x.title+' — Amit Dahan Mayo';
     }
     if (type==='professional') {
@@ -262,10 +266,30 @@
   document.addEventListener('click',event=>{
     const pdfChoice=event.target.closest('[data-live-pdf-select]');
     if(pdfChoice){
-      const block=pdfChoice.closest('.pdf-block');const iframe=block?.querySelector('[data-live-pdf-frame]');const open=block?.querySelector('[data-live-pdf-open]');
-      if(iframe){iframe.src=pdfChoice.dataset.pdfEmbed;iframe.title=pdfChoice.dataset.pdfTitle+' — PDF';}
-      if(open)open.href=pdfChoice.dataset.pdfOpen;
-      block?.querySelectorAll('[data-live-pdf-select]').forEach(b=>{const active=b===pdfChoice;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});return;
+      event.preventDefault();
+      const block=pdfChoice.closest('.pdf-block');
+      const iframe=block?.querySelector('[data-live-pdf-frame]');
+      const open=block?.querySelector('[data-live-pdf-open]');
+      const mobileOpen=block?.querySelector('[data-live-pdf-mobile-open]');
+      const mobileTitle=block?.querySelector('[data-live-pdf-mobile-title]');
+      const original=pdfChoice.dataset.pdfOpen;
+      const embed=pdfChoice.dataset.pdfEmbed;
+      const projectSlug=getRoute()[1];
+      if(projectSlug && original)selectedPdfByProject.set(projectSlug,original);
+      if(iframe && embed){
+        // A fresh viewer prevents browser-native PDF caching from showing the previous document.
+        const next=document.createElement('iframe');
+        next.setAttribute('data-live-pdf-frame','');
+        next.title=(pdfChoice.dataset.pdfTitle||'Project document')+' — PDF';
+        next.loading='eager';next.referrerPolicy='strict-origin-when-cross-origin';
+        next.src=embed;iframe.replaceWith(next);
+      }
+      if(open && original)open.href=original;
+      if(mobileOpen && original)mobileOpen.href=original;
+      if(mobileTitle)mobileTitle.textContent=pdfChoice.dataset.pdfTitle||'Project document';
+      block?.querySelectorAll('[data-live-pdf-select]').forEach(b=>{
+        const active=b===pdfChoice;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));
+      });return;
     }
     const pdfButton=event.target.closest('[data-live-pdf-fullscreen]');
     if(pdfButton){const frame=pdfButton.closest('.pdf-block');if(frame?.requestFullscreen)frame.requestFullscreen().catch(()=>{});return;}

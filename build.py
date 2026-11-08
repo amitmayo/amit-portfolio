@@ -201,7 +201,10 @@ def pdf_viewer(info: dict) -> str:
         documents.append((record.get('title', f'Document {index + 1}'), embed, raw))
     if documents:
         title, embed, raw = documents[0]
-        content = f'<div class="pdf-viewport"><iframe data-live-pdf-frame title="{e(info["title"])} — {e(title)}" src="{e(embed)}" loading="lazy"></iframe></div>'
+        content = (f'<div class="pdf-viewport"><iframe data-live-pdf-frame title="{e(info["title"])} — {e(title)}" src="{e(embed)}" loading="eager"></iframe></div>'
+                   f'<div class="pdf-mobile-panel"><span class="pdf-mobile-title" data-live-pdf-mobile-title>{e(title)}</span>'
+                   f'<p>For the complete document, open the PDF in your phone’s PDF viewer. You can zoom and browse all pages there.</p>'
+                   f'<a class="pdf-mobile-button" data-live-pdf-mobile-open href="{e(raw)}" target="_blank" rel="noopener noreferrer">View selected PDF ↗</a></div>')
         actions = f'<a data-live-pdf-open href="{e(raw)}" target="_blank" rel="noopener noreferrer">{icon("external")}<span class="label">Open PDF</span></a><button type="button" data-pdf-fullscreen aria-label="Fullscreen PDF">{icon("expand")}<span class="label">Fullscreen</span></button>'
         chooser = ''
         if len(documents) > 1:

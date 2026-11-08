@@ -105,3 +105,12 @@ textarea.admin-input{resize:vertical;min-height:82px}
 .admin-rich-help{font-size:10px;color:#c2b0b8;line-height:1.5}
 .admin-rich-surface:empty::before{content:'Type here…';color:#978991}
 @media(max-width:380px){.admin-effect-list{grid-template-columns:1fr}.admin-rich-colors{width:100%;margin:5px 0 0}}
+
+/* V7: visible palette rendering within the private editor (not just the public homepage). */
+.admin-rich-surface .hero-rich-run[data-hero-color="ivory"]{color:#f3eee9}
+.admin-rich-surface .hero-rich-run[data-hero-color="pearl"]{color:#fffaf3}
+.admin-rich-surface .hero-rich-run[data-hero-color="rose"]{color:#e5b0bf}
+.admin-rich-surface .hero-rich-run[data-hero-color="burgundy"]{color:#c17e8d}
+.admin-rich-surface .hero-rich-run[data-hero-color="burgundyDeep"]{color:#944a5c}
+.admin-rich-toolbar .admin-rich-all{min-width:41px;font-size:10px;letter-spacing:.03em}
+.admin-rich-colors button[aria-label="Set text color to Deep burgundy"]{border-color:#d39aab}

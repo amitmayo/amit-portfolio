@@ -5,7 +5,8 @@
     ivory: '#f3eee9',
     pearl: '#fffaf3',
     rose: '#e5b0bf',
-    burgundy: '#c17e8d'
+    burgundy: '#c17e8d',
+    burgundyDeep: '#944a5c'
   });
   const choices = Object.keys(palette);
   const limit = 900;

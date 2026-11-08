@@ -75,7 +75,7 @@
     const buttons=[];
     const makeTool=(name,caption)=>{
       const b=make('button','admin-rich-tool',caption);b.type='button';b.title=name;b.setAttribute('aria-label',name);
-      b.setAttribute('aria-pressed','false');b.addEventListener('pointerdown',event=>event.preventDefault());
+      b.setAttribute('aria-pressed','false');b.addEventListener('pointerdown',event=>event.preventDefault());b.addEventListener('mousedown',event=>event.preventDefault());
       toolbar.append(b);buttons.push(b);return b;
     };
     const bold=makeTool('Bold selected text','B');bold.style.fontWeight='bold';
@@ -83,25 +83,31 @@
     const colors=make('div','admin-rich-colors');
     const colorButtons=[];
     for(const [id,hex] of Object.entries(Hero.palette)){
-      const b=make('button');b.type='button';b.title=id==='ivory'?'Warm ivory':id==='pearl'?'Pearl white':id==='rose'?'Soft rose':'Burgundy';b.setAttribute('aria-label','Set text color to '+b.title);
-      b.style.setProperty('--swatch',hex);b.addEventListener('pointerdown',event=>event.preventDefault());
+      const b=make('button');b.type='button';b.title=id==='ivory'?'Warm ivory':id==='pearl'?'Pearl white':id==='rose'?'Soft rose':id==='burgundyDeep'?'Deep burgundy':'Light burgundy';b.setAttribute('aria-label','Set text color to '+b.title);
+      b.style.setProperty('--swatch',hex);b.addEventListener('pointerdown',event=>event.preventDefault());b.addEventListener('mousedown',event=>event.preventDefault());
       colors.append(b);colorButtons.push([id,b]);
     }
     toolbar.append(colors);
-    const helper=make('p','admin-rich-help','Select a word or phrase above, then choose B, I, or one of the four palette colors. Edits appear immediately in the preview.');
+    const helper=make('p','admin-rich-help','Select text to format it, or use Select all. Colors: ivory, pearl, rose, light burgundy, deep burgundy. The deeper shade is best for large text.');
+    const selectAll=makeTool('Select all text','All');selectAll.classList.add('admin-rich-all');
     const record=()=>{
       const runs=Hero.fromDOM(surface);
       if(Hero.flat(runs).length>maxLength){return false;}
       site[richKey]=runs;site[plainKey]=Hero.flat(runs);
       touch();return true;
     };
-    const offsets=()=>{
-      const sel=window.getSelection();if(!sel||!sel.rangeCount)return null;
+    let lastTextSelection=null;
+    const offsets=(remember=false)=>{
+      const sel=window.getSelection();
+      if(!sel||!sel.rangeCount)return remember?lastTextSelection:null;
       const r=sel.getRangeAt(0);
-      if(!surface.contains(r.startContainer)||!surface.contains(r.endContainer))return null;
+      if(!surface.contains(r.startContainer)||!surface.contains(r.endContainer))return remember?lastTextSelection:null;
       const prefix=document.createRange();prefix.selectNodeContents(surface);prefix.setEnd(r.startContainer,r.startOffset);
       const suffix=document.createRange();suffix.selectNodeContents(surface);suffix.setEnd(r.endContainer,r.endOffset);
-      return {start:prefix.toString().length,end:suffix.toString().length};
+      const result={start:prefix.toString().length,end:suffix.toString().length};
+      if(result.end>result.start)lastTextSelection={...result};
+      else if(document.activeElement===surface)lastTextSelection=null;
+      return result.end>result.start ? result : (remember?lastTextSelection:result);
     };
     const restore=(from,to)=>{
       const walker=document.createTreeWalker(surface,NodeFilter.SHOW_TEXT);
@@ -131,7 +137,7 @@
       for(const [id,b] of colorButtons){b.disabled=!has;b.setAttribute('aria-pressed',String(has&&pieces.every(x=>x.color===id)));}
     }
     function formatSelection(kind,value){
-      const range=offsets();if(!range||range.start===range.end){helper.textContent='Select the exact text you want to style first.';return;}
+      const range=offsets(true);if(!range||range.start===range.end){helper.textContent='Select the exact text you want to style first.';return;}
       const runs=Hero.fromDOM(surface);const pieces=selectedPieces(runs,range.start,range.end);
       const target=kind==='color'?value:!pieces.every(r=>r[kind]);
       const out=[];let index=0;
@@ -145,9 +151,16 @@
       }
       const normalized=Hero.normalize(out);
       Hero.write(surface,normalized);
-      record();restore(range.start,range.end);updateToolbar();
+      record();lastTextSelection={start:range.start,end:range.end};restore(range.start,range.end);updateToolbar();
       helper.textContent='Formatting applied. You can select another phrase or keep typing.';
     }
+    selectAll.onclick=()=>{
+      const textLength=Hero.flat(Hero.fromDOM(surface)).length;
+      if(!textLength)return;
+      lastTextSelection={start:0,end:textLength};
+      restore(0,textLength);updateToolbar();
+      helper.textContent='Entire line selected. Choose Bold, Italic, or a palette color.';
+    };
     bold.onclick=()=>formatSelection('bold');italic.onclick=()=>formatSelection('italic');
     for(const [id,b] of colorButtons)b.onclick=()=>formatSelection('color',id);
     surface.addEventListener('input',()=>{
@@ -172,7 +185,9 @@
         event.preventDefault();formatSelection(event.key.toLowerCase()==='b'?'bold':'italic');
       }
     });
-    for(const e of ['mouseup','keyup','focus','select'])surface.addEventListener(e,updateToolbar);
+    for(const e of ['mouseup','keyup','focus','select','touchend'])surface.addEventListener(e,()=>{offsets();updateToolbar();});
+    surface.addEventListener('blur',()=>{const sel=offsets(true);if(sel?.end>sel?.start)lastTextSelection={...sel};});
+    document.addEventListener('selectionchange',()=>{if(document.activeElement===surface){offsets();updateToolbar();}});
     area.append(toolbar,surface,helper);block.append(area);updateToolbar();
     return surface;
   }
