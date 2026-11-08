@@ -4,11 +4,11 @@ A minimal, image-led, multi-page personal portfolio. **This is a completely sepa
 
 **Design:** near-black `#171719`, warm off-white `#f3eee9`, and muted burgundy `#944a5c`.
 
-**Built with:** static HTML/CSS/JavaScript and a tiny Python build script. No npm packages, subscriptions, frontend frameworks, tracking scripts, third-party fonts, or database are required. Pages are generated from one editable content file, so the result is easy to host on GitHub Pages or Vercel.
+**Built with:** static HTML/CSS/JavaScript and a tiny Python build script. No npm packages, subscriptions, frontend frameworks, tracking scripts, or database are required. Uses Google Fonts for refined editorial and typewriter typography, with system fallbacks. Pages are generated from one editable content file, so the result is easy to host on GitHub Pages or Vercel.
 
 ## Site structure
 
-- `/` — fullscreen introduction with randomly changing image on each visit, dark-to-clear hover effect, and *Let's explore* button
+- `/` — centered fullscreen introduction with randomly changing image on each visit, dark-to-clear hover effect, and a subtle *Let's explore* link (no homepage navigation)
 - `/work/` — three large image-backed category buttons
 - `/work/academic/` — Istituto Marangoni introduction and seven academic projects
 - `/work/academic/<slug>/` — large cover, 1–2 sentence description, PDF embedded in the browser-native viewer
@@ -106,7 +106,7 @@ YouTube, YouTube Shorts, youtu.be, and Vimeo URLs are supported. The script conv
 
 ### 5. Creative Explorations galleries
 
-Four initial collection themes are *Photography*, *AI & Visual Studies*, *Film & Editing*, and *Collection Design*. These are changeable placeholders for the actual collections Amit wants to add later — no work is fabricated.
+Creative Explorations uses **individual, mixed-media sets**, not categories. The initial *Set 01*–*Set 04* cards are changeable placeholders, each of which can contain any combination of photography, AI visuals, film, editing, and collection design. Give each set its own title, cover image and list of media. No work is fabricated.
 
 For a collection in `creative_collections`, add media objects. Photos:
 
@@ -166,7 +166,7 @@ git push -u origin main
 - Upload actual hero photographs / images and category thumbnails.
 - Upload seven academic project covers and complete PDFs; refine the brief introductions if needed.
 - Upload documentary episode thumbnails and provide actual YouTube/Vimeo links with permission to embed.
-- Replace the four initial Creative Explorations category names with real project/collection titles as necessary; upload their photos and videos.
+- Replace the *Set 01*–*Set 04* placeholder titles with names for your mixed-media sets; upload photos and videos into each set.
 - Decide on your final personal domain, and check the appearance on a real phone.
 
 Everything else, including layouts, routes, responsive design, hover interactions, placeholders and the media-viewing systems, is implemented.

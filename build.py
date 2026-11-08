@@ -74,7 +74,7 @@ def nav(active: str, fixed: bool = True) -> str:
 def footer() -> str:
     return f'''<footer class="site-footer page-shell">
       <span>© {os.environ.get('COPYRIGHT_YEAR', '2026')} AMIT DAHAN MAYO</span>
-      <span>Made with thought, and a little curiosity.</span>
+
       <div class="site-footer-right"><a href="{e(SITE['linkedin'])}" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="mailto:{e(SITE['email'])}">Email</a></div>
     </footer>'''
 
@@ -86,11 +86,14 @@ def page(title: str, description: str, body: str, *, active: str = "", homepage:
 <meta name="color-scheme" content="dark"><meta name="theme-color" content="#171719">
 <meta name="description" content="{e(description)}"><title>{e(file_title)}</title>
 <link rel="icon" href="{uri('assets/favicon.svg')}" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Newsreader:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{uri('assets/style.css')}">
 <meta property="og:title" content="{e(file_title)}"><meta property="og:description" content="{e(description)}"><meta property="og:type" content="website">
 </head><body>
 <a class="skip-link" href="#main">Skip to content</a>
-{nav(active, fixed=not homepage)}
+{nav(active, fixed=True) if not homepage else ""}
 <main id="main">{body}</main>
 {footer() if not homepage else ''}
 {extra_script}
@@ -144,10 +147,10 @@ def home() -> None:
     script_json = json.dumps(images, ensure_ascii=False).replace("<", "\\u003c")
     body = f'''<section class="hero" aria-label="Introduction">
       <div class="hero-background" data-hero-background></div><div class="hero-overlay"></div><div class="hero-texture"></div>
-      <div class="hero-inner"><div class="hero-copy reveal"><p class="eyebrow muted">A creative portfolio <span class="dash"></span> Amit Dahan Mayo</p>
+      <div class="hero-inner"><div class="hero-copy reveal">
       <h1 class="hero-title">hey <em>you.</em></h1><p class="hero-intro">{e(SITE['hero_intro'])}</p>
-      <a class="explore-button" href="{uri('work/')}" data-hero-reveal>{e(SITE['homepage_button'])}<span class="round-arrow">{icon('arrow')}</span></a>
-      </div><div class="hero-side-note">Take a look around — 2026</div></div></section>'''
+      <a class="explore-button" href="{uri('work/')}" data-hero-reveal>{e(SITE['homepage_button'])}<span class="minimal-arrow">{icon('arrow', 14)}</span></a>
+      </div></div></section>'''
     write("", page(SITE["name"], "Creative projects and selected professional work by Amit Dahan Mayo.", body, homepage=True, extra_script=f'<script>window.PORTFOLIO_HERO_IMAGES={script_json};</script>'))
 
 
@@ -252,8 +255,8 @@ def creative() -> None:
     collections = CONFIG['creative_collections']
     cards = ''.join(card(coll,f"work/creative-explorations/{coll['slug']}/",f"{i:02d} / {len(collections):02d}") for i,coll in enumerate(collections,1))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work','work/'),('Creative Explorations',None)])}
-      {intro('03 / Creative Explorations', 'Less talking. <em>More looking.</em>', 'Photography, moving images, AI experiments and things I felt like making. A collection of visual ideas, big and small.',smaller=True)}
-      {list_head('Explore the collections',f'{len(collections):02d} collections')}<div class="tile-grid">{cards}</div>{back('Back to Work','work/')}</div>'''
+      {intro('03 / Creative Explorations', 'Less talking. <em>More looking.</em>', 'An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',smaller=True)}
+      {list_head('Browse the sets',f'{len(collections):02d} sets')}<div class="tile-grid">{cards}</div>{back('Back to Work','work/')}</div>'''
     write('work/creative-explorations',page('Creative Explorations','Photography, AI visuals, film, editing and design explorations by Amit Dahan Mayo.',body,active='work'))
 
 
@@ -277,11 +280,11 @@ def creative_collection(coll: dict) -> None:
         tiles.append(f'''<button type="button" class="gallery-item" data-gallery-item data-kind="{kind}" data-src="{e(src)}" data-caption="{e(title)}" aria-label="Open {e(title)} fullscreen">
         <img src="{e(media_uri(thumbnail))}" alt="{e(title)}" loading="lazy">{play}<span class="gallery-caption">{e(title)}</span></button>''')
     if not tiles:
-        gallery = '''<div class="placeholder-panel"><p class="eyebrow">Collection in progress</p><h2>Something good is taking shape.</h2><p>Images and videos from this collection will appear here as they are added.</p></div>'''
+        gallery = '''<div class="placeholder-panel"><p class="eyebrow">A work in progress</p><h2>More to show soon.</h2><p>This set will hold a mix of images and videos once they've been added.</p></div>'''
     else:
         gallery = f'<div class="gallery-grid" data-gallery>{"".join(tiles)}</div>'
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work','work/'),('Creative Explorations','work/creative-explorations/'),(coll['title'],None)])}
-      {intro('Creative Explorations',e(coll['title']),coll.get('subtitle',''),smaller=True)}{gallery}{back('All creative collections','work/creative-explorations/')}</div>'''
+      {intro('Creative Explorations',e(coll['title']),coll.get('subtitle',''),smaller=True)}{gallery}{back('All creative sets','work/creative-explorations/')}</div>'''
     write(f"work/creative-explorations/{coll['slug']}", page(coll['title'],coll.get('subtitle','Creative visual collection'),body,active='work'))
 
 
