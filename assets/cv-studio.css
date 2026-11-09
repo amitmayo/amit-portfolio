@@ -1,0 +1,86 @@
+/* PRIVATE CV Studio — six original, one-page A4 designs. Nothing appears on the public site. */
+.cv-preview-root{flex:1;min-height:0;overflow:auto;background:#101012;padding:28px 24px;display:flex;justify-content:center;align-items:flex-start;scrollbar-color:#534650 #171517}
+.cv-preview-scroll{width:100%;display:flex;align-items:flex-start;justify-content:center}
+.cv-sheet-holder{flex:0 0 auto;position:relative;box-shadow:0 12px 70px rgba(0,0,0,.35)}
+.cv-sheet{--cv-copy-size:10px;--cv-ink:#272128;--cv-accent:#944a5c;--cv-cream:#f3eee9;width:794px;height:1123px;position:absolute;left:0;top:0;box-sizing:border-box;overflow:hidden;padding:29px 32px 26px;background:var(--cv-cream);color:var(--cv-ink);font-family:'Newsreader',Georgia,serif;font-size:var(--cv-copy-size);line-height:1.25;font-weight:400;letter-spacing:0;-webkit-font-smoothing:antialiased}
+.cv-sheet *{box-sizing:border-box}.cv-sheet h1,.cv-sheet h2,.cv-sheet h3,.cv-sheet p,.cv-sheet ul{margin:0}.cv-sheet li{margin:0}.cv-sheet .cv-sheet-header{display:grid;grid-template-columns:minmax(0,1fr) 123px;gap:18px;align-items:start;min-height:118px;padding-bottom:12px;border-bottom:2px solid var(--cv-accent)}
+.cv-sheet .cv-kicker{font:700 9px 'Courier Prime',monospace;letter-spacing:2.2px;color:var(--cv-accent);padding-bottom:9px}
+.cv-sheet .cv-name{font:400 49px/0.92 'Newsreader',Georgia,serif;letter-spacing:-2.2px;color:inherit;max-width:570px}
+.cv-sheet .cv-tagline{font:400 10.6px/1.35 'Courier Prime',monospace;margin-top:14px;max-width:520px;color:inherit;letter-spacing:-.15px}
+.cv-sheet .cv-photo-frame{width:123px;height:113px;background:rgba(148,74,92,.09);border:1px solid rgba(148,74,92,.55);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}
+.cv-sheet .cv-photo-frame img{width:100%;height:100%;object-fit:cover;display:block}
+.cv-sheet .cv-photo-placeholder{font:700 9px 'Courier Prime',monospace;letter-spacing:.14em;color:var(--cv-accent)}
+.cv-sheet .cv-summary{font:400 12px/1.36 'Newsreader',Georgia,serif;padding:12px 0 8px;letter-spacing:.05px}
+.cv-sheet .cv-contacts{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:5px 10px;padding:9px 0 12px;border-top:1px solid rgba(148,74,92,.23);border-bottom:1px solid rgba(148,74,92,.23)}
+.cv-sheet .cv-contact{min-width:0;display:flex;gap:4px;align-items:baseline;font:400 9.1px/1.2 'Courier Prime',monospace;overflow-wrap:anywhere}
+.cv-sheet .cv-contact-label{font-weight:700;color:var(--cv-accent);white-space:nowrap;font-size:8px;text-transform:uppercase;letter-spacing:.25px}
+.cv-sheet .cv-contact-value{min-width:0;color:inherit}
+.cv-sheet .cv-grid{display:grid;grid-template-columns:244px minmax(0,1fr);gap:25px;align-items:start;padding-top:13px;min-height:0}
+.cv-sheet .cv-sidebar{padding-right:17px;border-right:1px solid rgba(148,74,92,.3);min-height:700px}
+.cv-sheet .cv-section{margin-bottom:12px}
+.cv-sheet .cv-section-heading{font:700 12px/1.15 'Courier Prime',monospace;letter-spacing:2px;color:var(--cv-accent);padding:0 0 6px;border-bottom:1px solid rgba(148,74,92,.24);margin-bottom:6px}
+.cv-sheet .cv-item-title{font:700 10.6px/1.15 'Courier Prime',monospace;letter-spacing:.1px;margin-bottom:3px}
+.cv-sheet .cv-school{margin-bottom:8px}.cv-sheet .cv-school-detail{font-size:10.5px;line-height:1.25;margin-bottom:2px}.cv-sheet .cv-quiet{color:var(--cv-accent);font:400 9px/1.25 'Courier Prime',monospace;margin-top:3px}
+.cv-sheet .cv-short-line{font:400 10px/1.35 'Courier Prime',monospace;margin-bottom:2px}
+.cv-sheet .cv-bullets{padding:0 0 0 10px;list-style:disc;font:400 var(--cv-copy-size)/1.22 'Newsreader',Georgia,serif}
+.cv-sheet .cv-bullets li{padding-left:1px;margin-bottom:2px}
+.cv-sheet .cv-bullets.compact{font:400 9.6px/1.2 'Courier Prime',monospace;padding-left:13px}.cv-sheet .cv-bullets.compact li{margin-bottom:1px}
+.cv-sheet .cv-bullets.nested{font:400 9.5px/1.17 'Newsreader',Georgia,serif;list-style:'– ';padding-left:12px}.cv-sheet .cv-bullets.nested li{margin-bottom:0}
+.cv-sheet .cv-subsection-label{font:700 8.9px/1.2 'Courier Prime',monospace;letter-spacing:.5px;margin:7px 0 4px}
+.cv-sheet .cv-project-group{margin-bottom:5px}.cv-sheet .cv-project-title{font:700 9.2px/1.15 'Courier Prime',monospace;letter-spacing:.1px;margin-bottom:2px}
+.cv-sheet .cv-role{margin-bottom:12px;break-inside:avoid}.cv-sheet .cv-role-title{font:700 11.2px/1.19 'Courier Prime',monospace;letter-spacing:-.22px;margin-bottom:2px}
+.cv-sheet .cv-role-subtitle{font:italic 10.5px/1.13 'Newsreader',Georgia,serif;margin-bottom:2px}
+.cv-sheet .cv-role-company{font:700 8.85px/1.23 'Courier Prime',monospace;color:var(--cv-accent);letter-spacing:-.2px;margin-bottom:4px;overflow-wrap:anywhere}
+.cv-sheet .cv-role-note{font:500 10px/1.23 'Newsreader',Georgia,serif;margin-top:4px;color:inherit}
+/* Distinct layouts share all original CV words; only art direction changes. */
+.cv-editorial-split{background:#f3eee9}.cv-editorial-split .cv-sidebar{background:#e8ddd9;padding:12px 12px 6px;margin:-5px 0 0 -12px;border-right:0}
+.cv-burgundy-masthead{padding-top:0;background:#f5eee8}
+.cv-burgundy-masthead .cv-sheet-header{background:#73384c;color:#fff6f1;margin:0 -32px;min-height:145px;padding:21px 32px 12px;border-bottom:none;grid-template-columns:minmax(0,1fr) 125px}
+.cv-burgundy-masthead .cv-kicker,.cv-burgundy-masthead .cv-photo-placeholder{color:#ffd6df}.cv-burgundy-masthead .cv-photo-frame{border-color:#b9828f;background:#5b2a3b}
+.cv-burgundy-masthead .cv-summary{padding-top:15px}.cv-burgundy-masthead .cv-grid{grid-template-columns:237px minmax(0,1fr);gap:20px}
+.cv-burgundy-masthead .cv-sidebar{border-right:2px solid #9b6474}
+.cv-quiet-ivory{background:#f8f6f1;--cv-accent:#925064; padding:36px 43px}
+.cv-quiet-ivory .cv-sheet-header{min-height:126px;border-bottom:1px solid var(--cv-accent)}
+.cv-quiet-ivory .cv-name{font-size:46px;font-weight:300;letter-spacing:-2px}
+.cv-quiet-ivory .cv-grid{grid-template-columns:228px 1fr;gap:30px}.cv-quiet-ivory .cv-sidebar{border-right:0;padding-right:0}
+.cv-quiet-ivory .cv-section-heading{letter-spacing:2.7px}
+.cv-dark-atelier{background:#1d1a1d;--cv-ink:#f1e9e4;--cv-cream:#1d1a1d;--cv-accent:#cc8ea1}
+.cv-dark-atelier .cv-summary{color:#e9dce0}.cv-dark-atelier .cv-contacts{border-color:#6b4754}.cv-dark-atelier .cv-sidebar{background:#292228;border-color:#6b4754;padding:12px 13px 8px;margin:-4px 0 0 -13px}
+.cv-dark-atelier .cv-photo-frame{background:#352932;border-color:#956578}
+.cv-dark-atelier .cv-section-heading{border-color:#614651}.cv-dark-atelier .cv-role-note{color:#f8ecf0}
+.cv-typewriter-index{background:#f0ebe6;--cv-accent:#814259;padding:27px 29px}
+.cv-typewriter-index .cv-name{font-family:'Courier Prime',monospace;font-weight:700;font-size:36px;letter-spacing:-1.8px;line-height:1}
+.cv-typewriter-index .cv-summary,.cv-typewriter-index .cv-bullets:not(.compact),.cv-typewriter-index .cv-school-detail,.cv-typewriter-index .cv-role-note{font-family:'Courier Prime',monospace;font-size:9.4px;line-height:1.24}
+.cv-typewriter-index .cv-grid{grid-template-columns:252px minmax(0,1fr);gap:18px}
+.cv-typewriter-index .cv-section-heading{font-size:10.5px;letter-spacing:3px;padding-bottom:8px;border-bottom:2px solid #814259}
+.cv-typewriter-index .cv-role-title{font-size:10px}.cv-typewriter-index .cv-sidebar{border-right:2px solid #814259}
+.cv-gallery-frame{background:#eee8e4;--cv-accent:#ac6076;padding:30px 33px}
+.cv-gallery-frame .cv-sheet-header{grid-template-columns:minmax(0,1fr) 140px;min-height:132px;background:#272026;color:#f6efeb;margin:-30px -33px 0;padding:26px 33px 14px;border-bottom:5px solid #ac6076}
+.cv-gallery-frame .cv-name{font-size:48px;letter-spacing:-1.6px}
+.cv-gallery-frame .cv-kicker{color:#d5a0b0}
+.cv-gallery-frame .cv-photo-frame{width:140px;height:116px;border:2px solid #ae7285}
+.cv-gallery-frame .cv-grid{grid-template-columns:245px 1fr;gap:20px}
+.cv-gallery-frame .cv-sidebar{background:#e1d7d4;padding:12px 12px 5px;margin:-5px 0 0 -12px;border-right:0}
+/* Admin-only controls */
+.cv-template-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cv-template-option{min-height:109px;background:#272126;color:#f3eee9;border:1px solid #564751;padding:8px;display:flex;align-items:center;flex-direction:column;gap:6px;text-align:center;cursor:pointer}
+.cv-template-option:hover{border-color:#b98192}.cv-template-option[aria-pressed="true"]{border:2px solid #c17e8d;background:#50343f}
+.cv-template-name{font:400 11px/1.25 'Courier Prime',monospace}
+.cv-template-thumbnail{width:52px;height:71px;border:1px solid #7d6670;background:#f3eee9;display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:9px}
+.cv-template-thumbnail i{height:2px;background:#7f475e;display:block}.cv-template-thumbnail b{height:26px;background:linear-gradient(90deg,#7b3b51 28%,#cbb6bd 28%,#cbb6bd 35%,transparent 35%,transparent 42%,#b9a9aa 42%);display:block}
+.cv-swatch-burgundy-masthead{background:linear-gradient(#73384c 30%,#f5eee8 30%)}
+.cv-swatch-dark-atelier{background:#211c21}.cv-swatch-dark-atelier b{background:linear-gradient(90deg,#ac7887 30%,#58434f 30%,#58434f 40%,#b19aa2 40%)}
+.cv-swatch-quiet-ivory{background:#faf9f6}.cv-swatch-typewriter-index{background:#eee6df;border:2px solid #8a4a60}
+.cv-swatch-gallery-frame{background:linear-gradient(#272026 29%,#eee8e4 29%)}
+.cv-export-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.cv-export-actions button:last-child{grid-column:1/-1}
+.cv-editor-group{border:1px solid #55464f;background:#211e22;padding:11px 12px}
+.cv-editor-group summary{color:#f1e9e4;font:700 12px/1.3 'Courier Prime',monospace;cursor:pointer;list-style:revert}
+.cv-editor-group[open] summary{padding-bottom:10px;border-bottom:1px solid #54424a;margin-bottom:12px}
+.cv-editor-field{display:flex;flex-direction:column;gap:5px;margin:10px 0;font:400 12px/1.3 'Courier Prime',monospace}
+.cv-editor-field .admin-input{min-height:33px;padding:8px;font-size:11px}
+.cv-editor-field textarea{resize:vertical;min-height:65px}
+.cv-photo-control{display:flex;flex-direction:column;gap:8px;font-size:11px;color:#e2d4d9}
+.cv-photo-control input{accent-color:#a65c70}
+.cv-remove-photo{width:max-content}.cv-setup-error{color:#eee2e2;padding:20px;font-size:13px;line-height:1.6}
+@media(max-width:800px){.cv-preview-root{padding:15px 10px}.cv-template-choices{grid-template-columns:repeat(3,minmax(0,1fr))}.cv-template-option{min-height:100px}}
+@media(max-width:420px){.cv-template-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -16,7 +16,7 @@
   let db=null, draft=null, section='home', focused=null, hasChanges=false;
   let lastSaved=null,previewTimer=null,autosaveTimer=null;
   let suppressPreviewSync=false, pendingUploads=0, writeQueue=Promise.resolve(), isPublishing=false;
-  const SEC={home:'Home',work:'Work',academic:'Academic',professional:'Professional',creative:'Creative',about:'About',contact:'Contact'};
+  const SEC={home:'Home',work:'Work',academic:'Academic',professional:'Professional',creative:'Creative',about:'About',contact:'Contact',cv:'CV'};
   const defaultTone={academic:'clay',professional:'cobalt',creative:'rose'};
   const safeSlug = input => (String(input||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48) || 'item')+'-'+Math.random().toString(36).slice(2,6);
   const nameFromFile=file=>String(file?.name||'Untitled').replace(/\.[^/.]+$/,'').replace(/[_-]+/g,' ').trim().slice(0,110)||'Untitled';
@@ -27,7 +27,7 @@
   function showError(message){errorBox.hidden=false;errorBox.textContent=message;}
   function setStatus(text,mode=''){status.textContent=text;status.dataset.state=mode;}
   const touch=()=>{hasChanges=true;setStatus('Unsaved changes','unsaved');clearTimeout(previewTimer);previewTimer=setTimeout(sendPreview,260);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveDraft(true),1800);};
-  function sendPreview(){if(draft && preview.contentWindow){preview.contentWindow.postMessage({type:'PORTFOLIO_DRAFT_PREVIEW',content:draft},location.origin);if(forceHoverPreview)sendHoverPreview();}}
+  function sendPreview(){if(section==='cv')return;if(draft && preview.contentWindow){preview.contentWindow.postMessage({type:'PORTFOLIO_DRAFT_PREVIEW',content:draft},location.origin);if(forceHoverPreview)sendHoverPreview();}}
   function textField(parent,obj,key,label,large=false,placeholder=''){
     const {block,name}=group(parent,label);const input=make(large?'textarea':'input','admin-input');input.id='admin-'+key+'-'+Math.random().toString(36).slice(2);
     name.htmlFor=input.id;input.value=String(obj[key]??'');input.placeholder=placeholder;
@@ -411,7 +411,24 @@
       mediaField(fieldBox,item,'thumbnail','Video thumbnail','image','creative');
     } else mediaField(fieldBox,item,'src','Image file','image','creative');
   }
-  function editWork(){heading('Work category images','These are the three large buttons that visitors see after they press Let’s explore.');
+  const SECTION_INTRO_DEFAULTS={
+    work:{eyebrow:'The portfolio',heading:'A little bit of',accent:'everything.',description:'Some things started as an idea on paper. Others found their way onto a screen. Here is a little of both.'},
+    academic:{eyebrow:'01 / Academic Work',heading:'A few years of',accent:'ideas.'},
+    professional:{eyebrow:'02 / Professional Work',heading:'Behind the',accent:'story.',description:'Selected documentary productions and the work behind bringing them to the screen.'},
+    creative:{eyebrow:'03 / Creative Explorations',heading:'Less talking.',accent:'More looking.',description:'An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.'}
+  };
+  function editSectionIntro(key){
+    // These fields are stored in the existing JSON content record; no database migration.
+    // Older portfolios without section_intros keep the original headings until edited.
+    draft.section_intros ||= {};
+    const current=draft.section_intros[key] ||= {...SECTION_INTRO_DEFAULTS[key]};
+    heading('Page heading & introduction','This edits the large heading and introduction above the project cards. The highlighted phrase keeps the existing italic burgundy styling.');
+    textField(fieldBox,current,'eyebrow','Small section label');
+    textField(fieldBox,current,'heading','Main heading (ivory)');
+    textField(fieldBox,current,'accent','Highlighted heading (italic burgundy)');
+    if(key!=='academic') textField(fieldBox,current,'description','Introduction below the heading',true);
+  }
+  function editWork(){editSectionIntro('work');heading('Work category images','These are the three large buttons that visitors see after they press Let’s explore.');
     for(const key of ['academic','professional','creative']){
       const obj=draft.categories[key]|| (draft.categories[key]={title:key,subtitle:'',cover:'',tone:defaultTone[key]});
       const title=make('h4','admin-subheading',SEC[key]);fieldBox.append(title);
@@ -432,7 +449,7 @@
     textField(fieldBox,draft.site,'email','Public contact email');textField(fieldBox,draft.site,'linkedin','LinkedIn URL');
   }
   function renderTabs(){tabs.replaceChildren();for(const [key,label] of Object.entries(SEC)){
-    const b=button(label,()=>{section=key;focused=null;renderTabs();renderFields();navigatePreview(defaultUrl(key));},section===key?'active':'');tabs.append(b);
+    const b=button(label,()=>{section=key;focused=null;renderTabs();renderFields();if(key!=='cv')navigatePreview(defaultUrl(key));},section===key?'active':'');tabs.append(b);
   }}
   function defaultUrl(key){return path(({home:'',work:'work/',academic:'work/academic/',professional:'work/professional/',creative:'work/creative-explorations/',about:'about/',contact:'contact/'}[key]||'' )+'?portfolio_preview=1');}
   function navigatePreview(url){
@@ -454,7 +471,7 @@
       if(pathName[1]==='creative-explorations')return ['creative',pathName[2]?['creative',pathName[2]==='set'?new URLSearchParams(loc.search).get('id'):pathName[2]]:null];
     }catch(_){}return [section,null];
   }
-  function syncWithPreview(){const [area,id]=routeToSection();
+  function syncWithPreview(){if(section==='cv')return;const [area,id]=routeToSection();
     const prev=focused;
     section=area;focused=null;
     if(id){if(id[0]==='episode'){const i=draft.professional_projects.findIndex(x=>x.slug===id[1]);if(i>=0){focused={kind:'professional',index:i,episode:draft.professional_projects[i].episodes.findIndex(x=>x.slug===id[2])};}}
@@ -469,7 +486,7 @@
     if(focused && focused.kind===section){
       const key={academic:'academic_projects',professional:'professional_projects',creative:'creative_collections'}[section];
       const item=draft[key]?.[focused.index];if(!item){focused=null;renderFields();return;}
-      fieldBox.append(button('← Back to '+SEC[section],()=>{focused=null;renderFields();navigatePreview(defaultUrl(section));},'admin-back'));
+      fieldBox.append(button('← Back to '+SEC[section]+' page & heading',()=>{focused=null;renderFields();navigatePreview(defaultUrl(section));},'admin-back'));
       if(section==='academic')editAcademic(item);
       if(section==='professional'){
         if(Number.isInteger(focused.episode)&&focused.episode>=0){
@@ -483,6 +500,8 @@
       }
       return;
     }
+    if(section==='cv'){window.CVStudio?.show();window.CVStudio?.renderFields(fieldBox);return;}
+    window.CVStudio?.hide();
     if(section==='home'){
       heading('Homepage','Fine-tune the introduction, typography and image reveal without changing the rest of the site.');
       heading('Homepage typography','Highlight any words inside the editor and apply bold, italic or an approved palette color.');
@@ -493,9 +512,9 @@
       if(!Array.isArray(draft.site.hero_images))draft.site.hero_images=[];heroImages();
     }
     if(section==='work')editWork();
-    if(section==='academic') {heading('Education intro');textField(fieldBox,draft,'academic_intro','Intro above academic projects',true);collectionList('academic');}
-    if(section==='professional')collectionList('professional');
-    if(section==='creative')collectionList('creative');
+    if(section==='academic') {editSectionIntro('academic');heading('Education intro');textField(fieldBox,draft,'academic_intro','Intro above academic projects',true);collectionList('academic');}
+    if(section==='professional'){editSectionIntro('professional');collectionList('professional');}
+    if(section==='creative'){editSectionIntro('creative');collectionList('creative');}
     if(section==='about')editAbout();
     if(section==='contact')editContact();
   }
@@ -543,6 +562,7 @@
     let starter=null;
     try{const res=await fetch(path('assets/initial-content.json'));if(res.ok)starter=await res.json();}catch(_){}
     draft=structuredClone(dr?.content||pub?.content||starter);
+    if(window.CVStudio) await window.CVStudio.init(db);
     if(!draft){showError('The starting content file is missing. Check the GitHub upload.');return;}
     draft.site.about_intro ||= 'A creative-minded person with a soft spot for good ideas, good design, and figuring out how to make them happen.';
     draft.site.about_paragraphs ||= [
@@ -558,7 +578,7 @@
       syncWithPreview();
     });
     window.addEventListener('message',event=>{if(event.origin===location.origin&&event.source===preview.contentWindow&&event.data?.type==='PORTFOLIO_PREVIEW_READY')sendPreview();});
-    $('#admin-save').onclick=()=>saveDraft(false);$('#admin-publish').onclick=publish;
+    $('#admin-save').onclick=()=>section==='cv'?window.CVStudio?.save(false):saveDraft(false);$('#admin-publish').onclick=()=>{if(section!=='cv')publish();};
     $('#admin-signout').onclick=async()=>{if(hasChanges&&!confirm('You have unsaved changes. Log out anyway?'))return;await db.auth.signOut();location.reload();};
     $('#admin-open-live').onclick=()=>window.open(path(), '_blank', 'noopener,noreferrer');
     renderTabs();renderFields();navigatePreview(defaultUrl('home'));

@@ -140,6 +140,22 @@ def intro(label: str, heading: str, description: str = "", *, smaller: bool = Fa
     {f'<p class="lead">{e(description)}</p>' if description else ''}</section>'''
 
 
+def section_intro(key: str, *, smaller: bool = False) -> str:
+    """Editable page introduction with the original ivory + burgundy emphasis."""
+    defaults = {
+        "work": {"eyebrow": "The portfolio", "heading": "A little bit of", "accent": "everything.", "description": "Some things started as an idea on paper. Others found their way onto a screen. Here is a little of both."},
+        "academic": {"eyebrow": "01 / Academic Work", "heading": "A few years of", "accent": "ideas."},
+        "professional": {"eyebrow": "02 / Professional Work", "heading": "Behind the", "accent": "story.", "description": "Selected documentary productions and the work behind bringing them to the screen."},
+        "creative": {"eyebrow": "03 / Creative Explorations", "heading": "Less talking.", "accent": "More looking.", "description": "An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix."}
+    }
+    cfg = {**defaults[key], **CONFIG.get("section_intros", {}).get(key, {})}
+    heading = e(cfg.get("heading") or "")
+    if cfg.get("accent"):
+        heading += " <em>" + e(cfg["accent"]) + "</em>"
+    description = CONFIG.get("academic_intro", "") if key == "academic" else cfg.get("description", "")
+    return intro(cfg.get("eyebrow") or "", heading, description, smaller=smaller)
+
+
 def list_head(label: str, count: int | str) -> str:
     return f'<div class="section-topline"><span class="small-label">{e(label)}</span><span class="count-label">{e(count)}</span></div>'
 
@@ -164,7 +180,7 @@ def work() -> None:
     sections = CONFIG["categories"]
     targets = {"academic": "work/academic/", "professional": "work/professional/", "creative": "work/creative-explorations/"}
     cards = ''.join(card(sections[key], targets[key], f"0{i} / 03", compact=True) for i, key in enumerate(("academic", "professional", "creative"), 1))
-    body = f'''<div class="page-shell content-frame">{intro('The portfolio', 'A little bit of <em>everything.</em>', 'Some things started as an idea on paper. Others found their way onto a screen. Here is a little of both.')}
+    body = f'''<div class="page-shell content-frame">{section_intro('work')}
         {list_head('Find your way through', '03 categories')}<div class="tile-grid three">{cards}</div></div>'''
     write("work", page("Work", "Explore Amit's academic work, professional productions, and creative experiments.", body, active="work"))
 
@@ -173,7 +189,7 @@ def academic() -> None:
     projects = CONFIG["academic_projects"]
     cards = ''.join(card(p, f"work/academic/{p['slug']}/", f"{i:02d} / {len(projects):02d}") for i, p in enumerate(projects, 1))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work', 'work/'), ('Academic Work', None)])}
-    {intro('01 / Academic Work', 'A few years of <em>ideas.</em>', CONFIG['academic_intro'], smaller=True)}
+    {section_intro('academic', smaller=True)}
     {list_head('Selected projects', f'{len(projects):02d} projects')}<div class="tile-grid">{cards}</div>{back('Back to Work', 'work/')}</div>'''
     write("work/academic", page("Academic Work", "Selected academic projects from Istituto Marangoni Milano by Amit Dahan Mayo.", body, active="work"))
 
@@ -230,7 +246,7 @@ def professional() -> None:
     pro = CONFIG["professional_projects"]
     cards = ''.join(card(p, f"work/professional/{p['slug']}/", f"{i:02d} / {len(pro):02d}", wide=True) for i,p in enumerate(pro,1))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work', 'work/'), ('Professional Work', None)])}
-    {intro('02 / Professional Work', 'Behind the <em>story.</em>', 'Selected documentary productions and the work behind bringing them to the screen.', smaller=True)}
+    {section_intro('professional', smaller=True)}
     {list_head('Selected productions', f'{len(pro):02d} productions')}<div class="tile-grid">{cards}</div>{back('Back to Work', 'work/')}</div>'''
     write("work/professional", page("Professional Work", "Selected documentary productions by Amit Dahan Mayo.", body, active="work"))
 
@@ -294,7 +310,7 @@ def creative() -> None:
     collections = CONFIG['creative_collections']
     cards = ''.join(card({**coll, 'cover': coll.get('cover') or next((m.get('src') for m in coll.get('media',[]) if m.get('type') != 'video' and m.get('src')), '') or next((m.get('thumbnail') for m in coll.get('media',[]) if m.get('thumbnail')), '')},f"work/creative-explorations/{coll['slug']}/",f"{i:02d} / {len(collections):02d}").replace('class="visual-card','data-live-open-set="'+e(coll['slug'])+'" class="visual-card') for i,coll in enumerate(collections,1))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work','work/'),('Creative Explorations',None)])}
-      {intro('03 / Creative Explorations', 'Less talking. <em>More looking.</em>', 'An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',smaller=True)}
+      {section_intro('creative', smaller=True)}
       {list_head('Browse the sets',f'{len(collections):02d} sets')}<div class="tile-grid">{cards}</div>{back('Back to Work','work/')}</div>'''
     write('work/creative-explorations',page('Creative Explorations','Photography, AI visuals, film, editing and design explorations by Amit Dahan Mayo.',body,active='work'))
 
@@ -363,7 +379,7 @@ def admin_page() -> None:
 <title>Portfolio Studio</title><link rel="icon" href="{uri('assets/favicon.svg')}" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Newsreader:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{uri('assets/style.css')}"><link rel="stylesheet" href="{uri('assets/admin.css')}">
+<link rel="stylesheet" href="{uri('assets/style.css')}"><link rel="stylesheet" href="{uri('assets/admin.css')}"><link rel="stylesheet" href="{uri('assets/cv-studio.css')}">
 </head><body class="portfolio-admin"><main id="admin-root">
 <section class="admin-login" id="admin-login"><div class="login-inner">
 <p class="admin-kicker">AMIT DAHAN MAYO / PORTFOLIO STUDIO</p>
@@ -381,12 +397,15 @@ def admin_page() -> None:
 <button type="button" id="admin-signout">Log out</button></div></header>
 <div class="admin-workspace"><section class="admin-preview-area" aria-label="Live website preview">
 <div class="admin-preview-top"><span>WEBSITE PREVIEW</span><button id="admin-open-live" type="button">Open public website ↗</button></div>
-<iframe id="admin-preview" title="Your portfolio website preview" src="{uri()}?portfolio_preview=1"></iframe></section>
+<iframe id="admin-preview" title="Your portfolio website preview" src="{uri()}?portfolio_preview=1"></iframe><div id="cv-preview-root" class="cv-preview-root" hidden></div></section>
 <aside class="admin-editor" aria-label="Content editor"><div class="admin-editor-top"><h2>Edit portfolio</h2><p>Changes are private until you publish.</p></div>
 <div class="admin-section-tabs" id="admin-section-tabs"></div><div class="admin-editor-fields" id="admin-editor-fields"></div></aside></div>
 </section></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="{uri('assets/hero-format.js')}" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" defer></script>
+<script src="{uri('assets/cv-studio.js')}" defer></script>
 <script src="{uri('assets/admin.js')}" defer></script></body></html>'''
     write('dan', html_page)
 

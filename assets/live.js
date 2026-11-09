@@ -15,6 +15,18 @@
   const safeSlug = value => String(value || '').replace(/[^a-z0-9-]/g, '').slice(0,90);
   const icon = name => name === 'arrow' ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 17 10-10M8 7h9v9"/></svg>' : name === 'file' ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8"/></svg>' : '<span aria-hidden="true">←</span>';
   const intro = (label, heading, description='', small=false) => `<section class="page-intro reveal"><p class="eyebrow">${esc(label)}</p><h1 class="display-title ${small?'small':''}">${heading}</h1>${description?`<p class="lead">${esc(description)}</p>`:''}</section>`;
+  const SECTION_INTRO_DEFAULTS={
+    work:{eyebrow:'The portfolio',heading:'A little bit of',accent:'everything.',description:'Some things started as an idea on paper. Others found their way onto a screen. Here is a little of both.'},
+    academic:{eyebrow:'01 / Academic Work',heading:'A few years of',accent:'ideas.'},
+    professional:{eyebrow:'02 / Professional Work',heading:'Behind the',accent:'story.',description:'Selected documentary productions and the work behind bringing them to the screen.'},
+    creative:{eyebrow:'03 / Creative Explorations',heading:'Less talking.',accent:'More looking.',description:'An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.'}
+  };
+  const sectionIntro=(key,data,small=false)=>{
+    const values={...SECTION_INTRO_DEFAULTS[key],...(data.section_intros?.[key]||{})};
+    const heading=esc(values.heading||'')+(values.accent?' <em>'+esc(values.accent)+'</em>':'');
+    const description=key==='academic'?(data.academic_intro??''):values.description;
+    return intro(values.eyebrow||'',heading,description||'',small);
+  };
   const listHead = (label, count) => `<div class="section-topline"><span class="small-label">${esc(label)}</span><span class="count-label">${esc(count)}</span></div>`;
   const crumb = steps => `<nav aria-label="Breadcrumb" class="breadcrumbs"><a href="${p()}">Home</a>${steps.map(([label,route])=>`<span class="sep">/</span>${route!==null?`<a href="${p(route)}">${esc(label)}</a>`:`<span>${esc(label)}</span>`}`).join('')}</nav>`;
   const back = (label, route) => `<div class="back-row"><a class="back-link" href="${p(route)}">← ${esc(label)}</a></div>`;
@@ -147,10 +159,10 @@
     if (type==='work') {
       const cats=data.categories||{};const keys=['academic','professional','creative'];
       const dest=['work/academic/','work/professional/','work/creative-explorations/'];
-      markup=wrap(intro('The portfolio','A little bit of <em>everything.</em>','Some things started as an idea on paper. Others found their way onto a screen. Here is a little of both.')+listHead('Find your way through','03 categories')+`<div class="tile-grid three">${keys.map((key,i)=>card(cats[key]||{title:key},section(dest[i]),`0${i+1} / 03`,true)).join('')}</div>`);
+      markup=wrap(sectionIntro('work',data)+listHead('Find your way through','03 categories')+`<div class="tile-grid three">${keys.map((key,i)=>card(cats[key]||{title:key},section(dest[i]),`0${i+1} / 03`,true)).join('')}</div>`);
     }
     if (type==='academic') {
-      markup=wrap(crumb([['Work','work/'],['Academic Work',null]])+intro('01 / Academic Work','A few years of <em>ideas.</em>',data.academic_intro||'',true)+listHead('Selected projects',`${String(academics.length).padStart(2,'0')} projects`)+`<div class="tile-grid">${academics.map((x,i)=>card(x,urlAcademic(x),`${String(i+1).padStart(2,'0')} / ${String(academics.length).padStart(2,'0')}`)).join('')}</div>`+back('Back to Work','work/'));
+      markup=wrap(crumb([['Work','work/'],['Academic Work',null]])+sectionIntro('academic',data,true)+listHead('Selected projects',`${String(academics.length).padStart(2,'0')} projects`)+`<div class="tile-grid">${academics.map((x,i)=>card(x,urlAcademic(x),`${String(i+1).padStart(2,'0')} / ${String(academics.length).padStart(2,'0')}`)).join('')}</div>`+back('Back to Work','work/'));
     }
     if (type==='academic-detail') {
       const x=academics.find(v=>v.slug===slug);if(!x) return renderNotFound(main);
@@ -167,7 +179,7 @@
       document.title=x.title+' — Amit Dahan Mayo';
     }
     if (type==='professional') {
-      markup=wrap(crumb([['Work','work/'],['Professional Work',null]])+intro('02 / Professional Work','Behind the <em>story.</em>','Selected documentary productions and the work behind bringing them to the screen.',true)+listHead('Selected productions',`${String(professionals.length).padStart(2,'0')} projects`)+`<div class="tile-grid">${professionals.map((x,i)=>card(x,urlProfessional(x),`${String(i+1).padStart(2,'0')} / ${String(professionals.length).padStart(2,'0')}`,false,true)).join('')}</div>`+back('Back to Work','work/'));
+      markup=wrap(crumb([['Work','work/'],['Professional Work',null]])+sectionIntro('professional',data,true)+listHead('Selected productions',`${String(professionals.length).padStart(2,'0')} projects`)+`<div class="tile-grid">${professionals.map((x,i)=>card(x,urlProfessional(x),`${String(i+1).padStart(2,'0')} / ${String(professionals.length).padStart(2,'0')}`,false,true)).join('')}</div>`+back('Back to Work','work/'));
     }
     if (type==='professional-detail') {
       const show=professionals.find(v=>v.slug===slug);if(!show)return renderNotFound(main);
@@ -186,7 +198,7 @@
     }
     if(type==='creative-explorations') {
       const visibleCover=set=>set.cover || (set.media||[]).find(m=>m.type!=='video'&&m.src)?.src || (set.media||[]).find(m=>m.thumbnail)?.thumbnail || '';
-      markup=wrap(crumb([['Work','work/'],['Creative Explorations',null]])+intro('03 / Creative Explorations','Less talking. <em>More looking.</em>','An assortment of images, videos, experiments, and things I felt like making — each set is its own little mix.',true)+listHead('Browse the sets',`${String(sets.length).padStart(2,'0')} sets`)+`<div class="tile-grid">${sets.map((x,i)=>card({...x,cover:visibleCover(x)},urlCreative(x),`${String(i+1).padStart(2,'0')} / ${String(sets.length).padStart(2,'0')}`).replace('<a class="visual-card','<a data-live-open-set="'+esc(x.slug)+'" class="visual-card')).join('')}</div>`+back('Back to Work','work/'));
+      markup=wrap(crumb([['Work','work/'],['Creative Explorations',null]])+sectionIntro('creative',data,true)+listHead('Browse the sets',`${String(sets.length).padStart(2,'0')} sets`)+`<div class="tile-grid">${sets.map((x,i)=>card({...x,cover:visibleCover(x)},urlCreative(x),`${String(i+1).padStart(2,'0')} / ${String(sets.length).padStart(2,'0')}`).replace('<a class="visual-card','<a data-live-open-set="'+esc(x.slug)+'" class="visual-card')).join('')}</div>`+back('Back to Work','work/'));
     }
     if(type==='creative-detail') {
       const set=sets.find(x=>x.slug===slug);if(!set)return renderNotFound(main);
