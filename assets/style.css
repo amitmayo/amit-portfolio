@@ -226,3 +226,13 @@ body{font-family:var(--font-editorial);font-size:18px;font-weight:400;letter-spa
 .collection-pdf-open{display:inline-block;padding:8px 14px;color:#f3eee9;font-family:'Courier Prime',monospace;font-size:12px;border:1px solid rgba(244,238,232,.35)}
 .collection-grid-document{display:grid;place-items:center;aspect-ratio:1;min-width:100px;background:linear-gradient(130deg,#35202b,#1d1c21);font-family:'Courier Prime',monospace;letter-spacing:.15em;color:#f3eee9}
 @media(max-width:700px){.collection-pdf-frame{display:none}.collection-pdf-holder{justify-content:center}.collection-pdf-open{padding:15px 20px}.education-notice{margin-top:45px;font-size:10px}}
+
+/* V10 — prevent old GitHub fallback content flashing before the published CMS data.
+   The 3.2s fail-safe in the document head shows static content when offline. */
+html.portfolio-booting #main,
+html.portfolio-booting .site-footer{visibility:hidden;opacity:0;pointer-events:none}
+html.portfolio-booted #main,
+html.portfolio-booted .site-footer{visibility:visible;opacity:1;transition:opacity .24s ease-out}
+/* After the remote homepage background arrives, fade the placeholder away gently. */
+.hero-background::before{transition:opacity .4s ease}
+@media(prefers-reduced-motion:reduce){html.portfolio-booted #main,html.portfolio-booted .site-footer{transition:none}}

@@ -32,7 +32,8 @@
   const heroButton = $('[data-hero-reveal]');
   if (hero && heroBackground) {
     const images = Array.isArray(window.PORTFOLIO_HERO_IMAGES) ? window.PORTFOLIO_HERO_IMAGES.map(x => typeof x==='string'?{src:x}:x).filter(x=>x?.src) : [];
-    if (images.length) {
+    const loadStaticHero = () => {
+      if (!images.length || heroBackground.dataset.currentHero || heroBackground.classList.contains('has-photo')) return;
       let previous = null;
       try { previous = localStorage.getItem('amit-portfolio-last-hero'); } catch (_) {}
       const candidates = images.length > 1 ? images.filter(x => x.src !== previous) : images;
@@ -46,7 +47,10 @@
         try { localStorage.setItem('amit-portfolio-last-hero', selected.src); } catch (_) {}
       };
       preload.src = selected.src;
-    }
+    };
+    if(window.PortfolioBoot && !window.PortfolioBoot.isReady())
+      document.addEventListener('portfolio:booted',loadStaticHero,{once:true});
+    else loadStaticHero();
     if (heroButton) {
       for (const eventName of ['mouseenter', 'focus', 'pointerdown']) {
         heroButton.addEventListener(eventName, () => hero.classList.add('is-revealed'));
@@ -116,7 +120,9 @@
         if(next===JSON.stringify([currentHeading,currentIntro,currentButton]))return;
         currentHeading=nextHeading;currentIntro=nextIntro;currentButton=nextButton;
         if(fromData&&editorPreview){token++;if(runTimer)clearTimeout(runTimer);paint();}
-        else play();
+        else if(window.PortfolioBoot && !window.PortfolioBoot.isReady()){
+          token++;if(runTimer)clearTimeout(runTimer);paint();
+        }else play();
       },
       setText(text,fromData=false){
         // Older homepage updates still call setText after the rich content is set.
@@ -125,7 +131,12 @@
         this.setContent({headingRuns:currentHeading,introText:text,buttonRuns:currentButton},fromData);
       }
     };
-    if(editorPreview)paint();else play();
+    if(editorPreview)paint();
+    else if(window.PortfolioBoot && !window.PortfolioBoot.isReady()){
+      // The final published intro arrives before the typewriter starts.
+      paint();
+      document.addEventListener('portfolio:booted',play,{once:true});
+    }else play();
   }
 
   // Browser-native PDF embeds already provide page and zoom controls. This expands the frame.

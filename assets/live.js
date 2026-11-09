@@ -339,20 +339,39 @@
   window.addEventListener('message',event=>{
     if(window.parent===window || event.origin!==location.origin)return;
     if(event.source!==window.parent)return;
-    if(event.data?.type==='PORTFOLIO_DRAFT_PREVIEW' && event.data.content)render(event.data.content);
+    if(event.data?.type==='PORTFOLIO_DRAFT_PREVIEW' && event.data.content){
+      render(event.data.content);
+      window.PortfolioBoot?.finish();
+    }
     if(event.data?.type==='PORTFOLIO_PREVIEW_HOVER'){document.querySelector('.hero')?.classList.toggle('is-revealed',event.data.active===true);}
   });
   const configUrl=p('assets/backend.json');
-  Promise.all([fetch(configUrl,{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),fetch(p('assets/initial-content.json')).then(r=>r.ok?r.json():null).catch(()=>null)]).then(async ([backend,fallback])=>{
-    if(backend?.url && backend?.publishableKey){
+  const previewing=window.parent!==window && new URLSearchParams(location.search).has('portfolio_preview');
+  Promise.all([
+    fetch(configUrl,{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(p('assets/initial-content.json')).then(r=>r.ok?r.json():null).catch(()=>null)
+  ]).then(async ([backend,fallback])=>{
+    if(backend?.url && backend?.publishableKey && !previewing && !window.PortfolioBoot?.isReady()){
       try{
         const url=backend.url.replace(/\/$/,'')+'/rest/v1/portfolio_published?id=eq.main&select=content';
         const response=await fetch(url,{headers:{apikey:backend.publishableKey,'Accept':'application/json'},cache:'no-store'});
-        if(response.ok){const rows=await response.json();if(rows?.[0]?.content && !(window.parent!==window && new URLSearchParams(location.search).has('portfolio_preview')))render(rows[0].content);}
-      } catch(error){console.warn('Public portfolio uses the built-in content fallback.',error);}
+        if(response.ok){
+          const rows=await response.json();
+          // If the network exceeds the fail-safe timeout, keep the now-visible
+          // static fallback for this navigation rather than suddenly swapping pages.
+          if(rows?.[0]?.content && !window.PortfolioBoot?.isReady())render(rows[0].content);
+        }
+      }catch(error){console.warn('Public portfolio uses the built-in content fallback.',error);}
     }
-    // Enables working static fallback if an item is created only in site.json.
-    if(fallback && !currentContent){currentContent=fallback;}
-    if(window.parent!==window && new URLSearchParams(location.search).has('portfolio_preview'))window.parent.postMessage({type:'PORTFOLIO_PREVIEW_READY'},location.origin);
+    if(fallback && !currentContent)currentContent=fallback;
+    if(previewing){
+      // The admin will send its draft; do not expose the stale public fallback.
+      window.parent.postMessage({type:'PORTFOLIO_PREVIEW_READY'},location.origin);
+    }else{
+      window.PortfolioBoot?.finish();
+    }
+  }).catch(error=>{
+    console.warn('Portfolio startup used the built-in fallback.',error);
+    window.PortfolioBoot?.finish();
   });
 })();

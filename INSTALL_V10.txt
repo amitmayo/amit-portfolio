@@ -1,0 +1,37 @@
+AMIT PORTFOLIO — V10 CONTENT FLASH FIX
+=====================================
+This update fixes the brief display of outdated, hard-coded website text before
+published Supabase content arrives. It also prevents the homepage typewriter
+from running against old text and eliminates the double homepage-image selection.
+
+Upload these FOUR files to github.com/amitmayo/amit-portfolio (branch main):
+  build.py
+  assets/app.js
+  assets/live.js
+  assets/style.css
+
+1. Extract the ZIP.
+2. In GitHub, open the repository root and choose Add file > Upload files.
+3. Drag the four files preserving their assets/ path and commit changes.
+4. Check Actions > Deploy Portfolio (green checkmark).
+5. Hard refresh the public site (Mac: Command + Shift + R), then click
+   Let's explore and navigate between Academic/Professional/Creative pages.
+6. Check /dan/ Admin Mode. No database updates or media reuploads are needed.
+
+What's changed:
+ - All public pages wait for the published text before showing the page's
+   main content and footer. Navigation and site design are untouched.
+ - 3.2-second safety fallback: if Supabase is inaccessible or too slow,
+   the built-in website remains usable rather than staying blank forever.
+ - Results arriving after the timeout are ignored on that visit, so content
+   cannot visibly swap from old to new after it has appeared.
+ - Homepage typing begins after content is ready, preserving rich formatting.
+ - The original static homepage image will not overwrite a published image.
+ - Admin's draft preview reveals only after it gets its draft; its CV editor,
+   content settings, analytics, and all private data remain unchanged.
+
+Validation: Python build generated 25 pages. JavaScript syntax checked.
+Browser simulations passed: Work, Academic, Professional, Creative, About,
+Contact, homepage typewriter/rich color, offline fallback and late responses.
+This is a code change: your saved Supabase data, Cloudflare PDFs and site theme
+are not modified. The live production website still requires your deployment.

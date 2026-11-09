@@ -90,6 +90,27 @@ def page(title: str, description: str, body: str, *, active: str = "", homepage:
 <meta name="color-scheme" content="dark"><meta name="theme-color" content="#171719">
 <meta name="description" content="{e(description)}"><title>{e(file_title)}</title>
 <link rel="icon" href="{uri('assets/favicon.svg')}" type="image/svg+xml">
+<script>
+/* Hold the old static fallback out of sight until published content is ready. */
+(() => {{
+  const root=document.documentElement;
+  root.classList.add('portfolio-booting');
+  let complete=false;
+  window.PortfolioBoot={{
+    isReady:()=>complete,
+    finish:()=>{{
+      if(complete)return false;
+      complete=true;
+      root.classList.remove('portfolio-booting');
+      root.classList.add('portfolio-booted');
+      document.dispatchEvent(new Event('portfolio:booted'));
+      return true;
+    }}
+  }};
+  /* Website remains usable without a working backend, even if a script fails. */
+  setTimeout(()=>window.PortfolioBoot.finish(),3200);
+}})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Newsreader:wght@300;400;500&display=swap" rel="stylesheet">
