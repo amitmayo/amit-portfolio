@@ -16,7 +16,7 @@
   let db=null, draft=null, section='home', focused=null, hasChanges=false;
   let lastSaved=null,previewTimer=null,autosaveTimer=null;
   let suppressPreviewSync=false, pendingUploads=0, writeQueue=Promise.resolve(), isPublishing=false;
-  const SEC={home:'Home',work:'Work',academic:'Academic',professional:'Professional',creative:'Creative',about:'About',contact:'Contact',cv:'CV'};
+  const SEC={home:'Home',work:'Work',academic:'Academic',professional:'Professional',creative:'Creative',about:'About',contact:'Contact',cv:'CV',analytics:'Analytics'};
   const defaultTone={academic:'clay',professional:'cobalt',creative:'rose'};
   const safeSlug = input => (String(input||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48) || 'item')+'-'+Math.random().toString(36).slice(2,6);
   const nameFromFile=file=>String(file?.name||'Untitled').replace(/\.[^/.]+$/,'').replace(/[_-]+/g,' ').trim().slice(0,110)||'Untitled';
@@ -27,7 +27,7 @@
   function showError(message){errorBox.hidden=false;errorBox.textContent=message;}
   function setStatus(text,mode=''){status.textContent=text;status.dataset.state=mode;}
   const touch=()=>{hasChanges=true;setStatus('Unsaved changes','unsaved');clearTimeout(previewTimer);previewTimer=setTimeout(sendPreview,260);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveDraft(true),1800);};
-  function sendPreview(){if(section==='cv')return;if(draft && preview.contentWindow){preview.contentWindow.postMessage({type:'PORTFOLIO_DRAFT_PREVIEW',content:draft},location.origin);if(forceHoverPreview)sendHoverPreview();}}
+  function sendPreview(){if(section==='cv'||section==='analytics')return;if(draft && preview.contentWindow){preview.contentWindow.postMessage({type:'PORTFOLIO_DRAFT_PREVIEW',content:draft},location.origin);if(forceHoverPreview)sendHoverPreview();}}
   function textField(parent,obj,key,label,large=false,placeholder=''){
     const {block,name}=group(parent,label);const input=make(large?'textarea':'input','admin-input');input.id='admin-'+key+'-'+Math.random().toString(36).slice(2);
     name.htmlFor=input.id;input.value=String(obj[key]??'');input.placeholder=placeholder;
@@ -355,21 +355,21 @@
     textField(fieldBox,ep,'title','Episode title');textField(fieldBox,ep,'subtitle','Subtitle');
     textField(fieldBox,ep,'description','Optional short description',true);
     mediaField(fieldBox,ep,'cover','Episode card image','image','professional');
-    textField(fieldBox,ep,'video_url','YouTube / Vimeo / Google Drive URL',false,'https://www.youtube.com/watch?v=…');
-    fieldBox.append(make('p','admin-field-help','Use a public video link that allows embedding. Google Drive links must use Anyone with the link → Viewer; Google may still require cookies or sign-in.'));
+    textField(fieldBox,ep,'video_url','YouTube / Vimeo / Google Drive / KAN URL',false,'https://www.youtube.com/watch?v=…');
+    fieldBox.append(make('p','admin-field-help','YouTube/Vimeo/Drive links use an embedded player. Official KAN 11 links open the broadcaster page in a new tab, because embedding is not guaranteed.'));
     const show=draft.professional_projects[focused.index];
     fieldBox.append(button('＋ Add another episode',()=>addEpisode(show,focused.index),'admin-add'));
     fieldBox.append(make('p','admin-field-help','After adding or editing episodes, choose Save draft and then Publish changes.'));
   }
   function editCreative(item){
-    heading('Creative set','A single mixed-media set. Add images and videos in any order.');
+    heading('Creative set','A single mixed-media set. Add images, videos, and PDF documents in any order.');
     textField(fieldBox,item,'title','Set title');textField(fieldBox,item,'subtitle','Short subtitle');
     mediaField(fieldBox,item,'cover','Set cover image','image','creative');
-    heading('Images and videos','Click Edit on a visual to change its title, file or link.');
+    heading('Images, videos & PDFs','Choose Details to change the type, title, file or link.');
     const media=item.media|| (item.media=[]);const list=make('div','admin-list');fieldBox.append(list);
     media.forEach((visual,index)=>{
       const line=make('div','admin-list-row admin-visual-list-row');
-      if(visual.thumbnail||(visual.type!=='video'&&visual.src)){const img=make('img','admin-list-thumb');img.src=visual.thumbnail||visual.src;img.alt='';img.onerror=()=>{img.alt='Image unavailable';img.classList.add('admin-missing-thumb');};line.append(img);}
+      if(visual.thumbnail||(visual.type==='image'&&visual.src)){const img=make('img','admin-list-thumb');img.src=visual.thumbnail||visual.src;img.alt='';img.onerror=()=>{img.alt='Image unavailable';img.classList.add('admin-missing-thumb');};line.append(img);}else if(visual.type==='pdf'){line.append(make('span','admin-pdf-list-badge','PDF'));}
       const title=make('input','admin-input admin-inline-title');title.value=visual.title||'';title.placeholder=`Image ${index+1} title`;
       title.setAttribute('aria-label',`Title for image or video ${index+1}`);title.addEventListener('input',()=>{visual.title=title.value;touch();});
       line.append(title,button('Details',()=>{focused.media=index;renderFields();},'small'),rowActions(line,media,index,renderFields,false));list.append(line);
@@ -395,20 +395,24 @@
       else setStatus(`${done} images uploaded. You can rename them below. Changes remain draft until Publish.`,'unsaved');
     });
     block.append(picker,help);
-    fieldBox.append(button('＋ Add an individual image or video',()=>{
+    fieldBox.append(button('＋ Add an image, video or PDF',()=>{
       media.push({title:'Untitled visual',type:'image',src:'',thumbnail:''});focused.media=media.length-1;touch();renderFields();
     },'admin-add'));
   }
   function editVisual(item){
-    heading('Visual item','Upload an image, or paste a video URL and upload its thumbnail.');
-    textField(fieldBox,item,'title','Image / video title');
+    heading('Creative item','Upload an image or PDF, or paste a hosted media URL.');
+    textField(fieldBox,item,'title','Item title');
     const {block,name}=group(fieldBox,'Media type');const select=make('select','admin-input');name.htmlFor='visual-type';select.id='visual-type';
-    [['image','Image'],['video','Video']].forEach(([value,label])=>{const opt=make('option','',label);opt.value=value;select.append(opt);});select.value=item.type||'image';
+    [['image','Image'],['video','Video'],['pdf','PDF document']].forEach(([value,label])=>{const opt=make('option','',label);opt.value=value;select.append(opt);});select.value=item.type||'image';
     select.onchange=()=>{item.type=select.value;touch();renderFields();};block.append(select);
     if(item.type==='video'){
       mediaField(fieldBox,item,'src','Video file / YouTube / Vimeo / Google Drive URL','video','creative');
       fieldBox.append(make('p','admin-field-help','For Google Drive, paste the actual FILE sharing link (Anyone with the link → Viewer). The public viewer uses Google Drive preview, not a raw video tag. If playback is blocked by Google, visitors can open it in Drive.'));
       mediaField(fieldBox,item,'thumbnail','Video thumbnail','image','creative');
+    } else if(item.type==='pdf'){
+      mediaField(fieldBox,item,'src','PDF file / Cloudflare R2 URL','pdf','creative');
+      mediaField(fieldBox,item,'thumbnail','Optional PDF card cover image','image','creative');
+      fieldBox.append(make('p','admin-field-help','For PDFs larger than 50 MB, paste the public Cloudflare Worker PDF URL. The viewer opens the complete file; phones can open it in a new tab.'));
     } else mediaField(fieldBox,item,'src','Image file','image','creative');
   }
   const SECTION_INTRO_DEFAULTS={
@@ -449,8 +453,13 @@
     textField(fieldBox,draft.site,'email','Public contact email');textField(fieldBox,draft.site,'linkedin','LinkedIn URL');
   }
   function renderTabs(){tabs.replaceChildren();for(const [key,label] of Object.entries(SEC)){
-    const b=button(label,()=>{section=key;focused=null;renderTabs();renderFields();if(key!=='cv')navigatePreview(defaultUrl(key));},section===key?'active':'');tabs.append(b);
-  }}
+    const b=button(label,()=>{section=key;focused=null;renderTabs();renderFields();if(key!=='cv'&&key!=='analytics')navigatePreview(defaultUrl(key));},section===key?'active':'');tabs.append(b);
+    }
+    // Analytics has no content to publish, and private CV edits use their own Save command.
+    const save=$('#admin-save'),publish=$('#admin-publish');
+    if(save)save.hidden=section==='analytics';
+    if(publish)publish.hidden=section==='analytics'||section==='cv';
+  }
   function defaultUrl(key){return path(({home:'',work:'work/',academic:'work/academic/',professional:'work/professional/',creative:'work/creative-explorations/',about:'about/',contact:'contact/'}[key]||'' )+'?portfolio_preview=1');}
   function navigatePreview(url){
     if(preview.src!==new URL(url,location.origin).href){suppressPreviewSync=true;preview.src=url;}
@@ -471,13 +480,54 @@
       if(pathName[1]==='creative-explorations')return ['creative',pathName[2]?['creative',pathName[2]==='set'?new URLSearchParams(loc.search).get('id'):pathName[2]]:null];
     }catch(_){}return [section,null];
   }
-  function syncWithPreview(){if(section==='cv')return;const [area,id]=routeToSection();
+  function syncWithPreview(){if(section==='cv'||section==='analytics')return;const [area,id]=routeToSection();
     const prev=focused;
     section=area;focused=null;
     if(id){if(id[0]==='episode'){const i=draft.professional_projects.findIndex(x=>x.slug===id[1]);if(i>=0){focused={kind:'professional',index:i,episode:draft.professional_projects[i].episodes.findIndex(x=>x.slug===id[2])};}}
       else{const key={academic:'academic_projects',professional:'professional_projects',creative:'creative_collections'}[id[0]];const i=draft[key]?.findIndex(x=>x.slug===id[1]);if(i>=0)focused={kind:id[0],index:i};}}
     if(!focused && area==='professional' && prev?.kind==='professional' && prev.index>=0 && (!id || id[0]==='episode'))focused=prev;
     renderTabs();renderFields();sendPreview();
+  }
+  // Only the owner can read analytics; enforced by Supabase RLS + the RPC.
+  let analyticsWindow=30;
+  function analyticsMetric(parent,label,value){
+    const card=make('div','admin-metric-card');card.append(make('span','admin-metric-label',label),make('strong','admin-metric-value',String(value)));parent.append(card);
+  }
+  function analyticsBreakdown(parent,label,items,key='label',value='views'){
+    const wrap=make('div','admin-analytics-breakdown');wrap.append(make('h4','admin-subheading',label));
+    if(!Array.isArray(items)||!items.length){wrap.append(make('p','admin-field-help','No visits recorded yet.'));parent.append(wrap);return;}
+    for(const x of items){const line=make('div','admin-metric-row');line.append(make('span','',String(x[key]||'Unknown')),make('strong','',String(x[value]||0)));wrap.append(line);}
+    parent.append(wrap);
+  }
+  function editAnalytics(){
+    heading('Portfolio analytics','Private visit statistics. Counts begin after installing this update and running the analytics SQL.');
+    fieldBox.append(make('p','admin-field-help','Visits are approximate browsing sessions, not verified unique people. Sources show referral websites; locations are browser-reported time zones, not IP-based locations. No visitor IP addresses, names or persistent visitor IDs are stored.'));
+    const choices=make('div','admin-analytics-choices');
+    for(const period of [7,30,90])choices.append(button(period+' days',()=>{analyticsWindow=period;renderFields();},analyticsWindow===period?'active':''));
+    fieldBox.append(choices);
+    const display=make('div','admin-analytics-results');fieldBox.append(display);
+    fieldBox.append(button('Refresh statistics',()=>loadAnalytics(display),'small'));
+    loadAnalytics(display);
+  }
+  async function loadAnalytics(display){
+    display.replaceChildren(make('p','admin-field-help','Loading analytics…'));
+    if(!db){display.replaceChildren(make('p','admin-field-help','Sign in to view analytics.'));return;}
+    try{
+      const {data,error}=await db.rpc('portfolio_analytics_summary',{window_days:analyticsWindow});
+      if(section!=='analytics'||!display.isConnected)return;
+      if(error)throw error;
+      display.replaceChildren();
+      const cards=make('div','admin-metrics-grid');display.append(cards);
+      analyticsMetric(cards,'Visits',data?.visits??0);
+      analyticsMetric(cards,'Page views',data?.pageviews??0);
+      analyticsMetric(cards,'All-time page views',data?.all_time_pageviews??0);
+      analyticsBreakdown(display,'Views by day (UTC)',data?.by_day,'label','views');
+      analyticsBreakdown(display,'Entry sources',data?.sources,'label','visits');
+      analyticsBreakdown(display,'Popular pages',data?.pages,'label','views');
+      analyticsBreakdown(display,'Visitor time zones (self-reported)',data?.timezones,'label','visits');
+      if(Array.isArray(data?.recent_entries)&&data.recent_entries.length){const heading=make('h4','admin-subheading','Recent visits (UTC)');display.append(heading);for(const entry of data.recent_entries){const when=new Date(entry.at).toLocaleString('en-GB',{timeZone:'UTC',dateStyle:'short',timeStyle:'short'});const line=make('div','admin-metric-row');line.append(make('span','',when+' · '+(entry.source||'Direct')),make('strong','',entry.timezone||'Unknown'));display.append(line);}}
+      display.append(make('p','admin-field-help','Traffic can be missed when browsers block tracking. Public analytics submissions can be fabricated, so these figures are indicative. For verified country-level traffic, Cloudflare Web Analytics can be added separately.'));
+    }catch(e){if(display.isConnected){display.replaceChildren(make('p','admin-field-help','Analytics needs the separate Supabase SQL setup. '+String(e?.message||e)));}}
   }
   function renderFields(){if(!draft)return;
     const editor=fieldBox.closest('.admin-editor');const scroll=editor?.scrollTop||0;
@@ -502,6 +552,7 @@
     }
     if(section==='cv'){window.CVStudio?.show();window.CVStudio?.renderFields(fieldBox);return;}
     window.CVStudio?.hide();
+    if(section==='analytics'){editAnalytics();return;}
     if(section==='home'){
       heading('Homepage','Fine-tune the introduction, typography and image reveal without changing the rest of the site.');
       heading('Homepage typography','Highlight any words inside the editor and apply bold, italic or an approved palette color.');

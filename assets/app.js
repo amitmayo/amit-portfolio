@@ -189,7 +189,12 @@
       const url = item.dataset.src;
       const title = item.dataset.caption || 'Visual work';
       mediaContainer.replaceChildren();
-      if (kind === 'video') {
+      if (kind === 'pdf') {
+        const holder=document.createElement('div');holder.className='collection-pdf-holder';
+        const iframe=document.createElement('iframe');iframe.className='collection-pdf-frame';iframe.title=title+' — PDF';iframe.src=url;iframe.loading='eager';holder.append(iframe);
+        const open=document.createElement('a');open.className='collection-pdf-open';open.href=url;open.target='_blank';open.rel='noopener noreferrer';open.textContent='Open PDF in a new tab ↗';holder.append(open);
+        mediaContainer.appendChild(holder);
+      } else if (kind === 'video') {
         if (url.includes('youtube-nocookie.com/embed/') || url.includes('player.vimeo.com/video/') || /drive\.google\.com\/file\/d\/.+\/preview/.test(url)) {
           const iframe = document.createElement('iframe');
           iframe.src = url;

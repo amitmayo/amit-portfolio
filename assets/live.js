@@ -45,6 +45,7 @@
       <div class="tile-bottom"><h2 class="tile-title ${compact?'smaller':''}">${esc(item.title)}</h2><p class="tile-subtitle">${esc(item.subtitle || '')}</p></div></div></a>`;
   };
   const wrap = inner => `<div class="page-shell content-frame">${inner}</div>`;
+  const educationNotice = () => `<p class="education-notice">${esc('Academic projects displayed here were created for educational and portfolio purposes only. Third-party names, logos, imagery and other materials remain the property of their respective owners. No commercial use, affiliation or endorsement is intended.')}</p>`;
   const section = route => p(route);
   const urlAcademic = x => section('work/academic/project/?id='+encodeURIComponent(x.slug));
   const urlProfessional = x => section('work/professional/show/?id='+encodeURIComponent(x.slug));
@@ -91,6 +92,10 @@
     return '';
   };
 
+  const safeExternal = raw => {
+    try {const u=new URL(String(raw||''));return u.protocol==='https:'?u.href:'';}catch(_){return '';}
+  };
+  const isKan = raw => {try {const h=new URL(raw).hostname.toLowerCase();return h==='kan.org.il'||h.endsWith('.kan.org.il');}catch(_){return false;}};
   const pdfLink = raw => {
     const source=asset(raw);if(!source)return {embed:'',open:''};
     try{
@@ -159,10 +164,10 @@
     if (type==='work') {
       const cats=data.categories||{};const keys=['academic','professional','creative'];
       const dest=['work/academic/','work/professional/','work/creative-explorations/'];
-      markup=wrap(sectionIntro('work',data)+listHead('Find your way through','03 categories')+`<div class="tile-grid three">${keys.map((key,i)=>card(cats[key]||{title:key},section(dest[i]),`0${i+1} / 03`,true)).join('')}</div>`);
+      markup=wrap(sectionIntro('work',data)+listHead('Find your way through','03 categories')+`<div class="tile-grid three">${keys.map((key,i)=>card(cats[key]||{title:key},section(dest[i]),`0${i+1} / 03`,true)).join('')}</div>`+educationNotice());
     }
     if (type==='academic') {
-      markup=wrap(crumb([['Work','work/'],['Academic Work',null]])+sectionIntro('academic',data,true)+listHead('Selected projects',`${String(academics.length).padStart(2,'0')} projects`)+`<div class="tile-grid">${academics.map((x,i)=>card(x,urlAcademic(x),`${String(i+1).padStart(2,'0')} / ${String(academics.length).padStart(2,'0')}`)).join('')}</div>`+back('Back to Work','work/'));
+      markup=wrap(crumb([['Work','work/'],['Academic Work',null]])+sectionIntro('academic',data,true)+listHead('Selected projects',`${String(academics.length).padStart(2,'0')} projects`)+`<div class="tile-grid">${academics.map((x,i)=>card(x,urlAcademic(x),`${String(i+1).padStart(2,'0')} / ${String(academics.length).padStart(2,'0')}`)).join('')}</div>`+educationNotice()+back('Back to Work','work/'));
     }
     if (type==='academic-detail') {
       const x=academics.find(v=>v.slug===slug);if(!x) return renderNotFound(main);
@@ -175,7 +180,7 @@
       const doc=first?`<div class="pdf-viewport"><iframe data-live-pdf-frame title="${esc(x.title)} — ${esc(first.title)}" src="${esc(first.link.embed)}" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`:`<div class="pdf-empty">${icon('file')}<strong>Full project coming soon</strong><p>The PDFs will appear here once they're added to the portfolio.</p></div>`;
       const mobile=first?`<div class="pdf-mobile-panel"><span class="pdf-mobile-title" data-live-pdf-mobile-title>${esc(first.title)}</span><p>For the complete document, open the PDF in your phone’s PDF viewer. You can zoom and browse all pages there.</p><a class="pdf-mobile-button" data-live-pdf-mobile-open href="${esc(first.link.open)}" target="_blank" rel="noopener noreferrer">View selected PDF ↗</a></div>`:'';
       const actions=first?`<a data-live-pdf-open href="${esc(first.link.open)}" target="_blank" rel="noopener noreferrer">Open document ↗</a><button type="button" data-live-pdf-fullscreen>Fullscreen</button>`:'';
-      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover,x)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document${documents.length>1?'s':''}</span></div><div class="pdf-actions">${actions}</div></div>${chooser}${doc}${mobile}</section>`+back('All academic projects','work/academic/'));
+      markup=wrap(crumb([['Work','work/'],['Academic Work','work/academic/'],[x.title,null]])+`<div class="project-hero-cover"><div class="visual-card-image tone-${esc(x.tone||'clay')}" ${imageBg(x.cover,x)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">${esc(x.subtitle)}</span></div><div class="project-detail-head reveal"><p class="eyebrow">${esc(x.subtitle)}</p><h1 class="display-title small">${esc(x.title)}</h1><p class="project-description">${esc(x.description||'')}</p></div><section class="pdf-block" id="project-pdf"><div class="pdf-bar"><div class="pdf-bar-left">${icon('file')}<span>Project document${documents.length>1?'s':''}</span></div><div class="pdf-actions">${actions}</div></div>${chooser}${doc}${mobile}</section>`+educationNotice()+back('All academic projects','work/academic/'));
       document.title=x.title+' — Amit Dahan Mayo';
     }
     if (type==='professional') {
@@ -192,18 +197,26 @@
       const show=professionals.find(x=>x.slug===slug);const ep=show?.episodes?.find(x=>x.slug===subslug);
       if(!show||!ep)return renderNotFound(main);
       const src=iframeSafe(ep.video_url);
-      const player=src?`<iframe src="${esc(src)}" title="${esc(ep.title)}" loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`:`<div class="video-placeholder"><p>The player will appear when a YouTube or Vimeo link is added.</p></div>`;
+      const official=safeExternal(ep.video_url);
+      const sourceLabel=isKan(official)?'Watch on KAN 11': 'Watch on the original website';
+      const player=src?`<iframe src="${esc(src)}" title="${esc(ep.title)}" loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`:official?`<div class="video-placeholder external-episode"><p>This episode is available from the original broadcaster.</p><a class="official-watch-link" href="${esc(official)}" target="_blank" rel="noopener noreferrer">${sourceLabel} ↗</a><p class="external-episode-note">Opens the official page in a new tab.</p></div>`:`<div class="video-placeholder"><p>Add a YouTube, Vimeo, Google Drive or broadcaster link to watch the episode.</p></div>`;
       markup=wrap(crumb([['Work','work/'],['Professional Work','work/professional/'],[show.title,urlProfessional(show).replace(prefix,'')],[ep.title,null]])+intro(show.title,esc(ep.title),ep.description||'Selected episode',true)+`<section class="video-embed" aria-label="Episode player">${player}</section>`+back('Back to episodes',urlProfessional(show).replace(prefix,'')));
       document.title=ep.title+' — Amit Dahan Mayo';
     }
     if(type==='creative-explorations') {
-      const visibleCover=set=>set.cover || (set.media||[]).find(m=>m.type!=='video'&&m.src)?.src || (set.media||[]).find(m=>m.thumbnail)?.thumbnail || '';
+      const visibleCover=set=>set.cover || (set.media||[]).find(m=>m.type==='image'&&m.src)?.src || (set.media||[]).find(m=>m.thumbnail)?.thumbnail || '';
       markup=wrap(crumb([['Work','work/'],['Creative Explorations',null]])+sectionIntro('creative',data,true)+listHead('Browse the sets',`${String(sets.length).padStart(2,'0')} sets`)+`<div class="tile-grid">${sets.map((x,i)=>card({...x,cover:visibleCover(x)},urlCreative(x),`${String(i+1).padStart(2,'0')} / ${String(sets.length).padStart(2,'0')}`).replace('<a class="visual-card','<a data-live-open-set="'+esc(x.slug)+'" class="visual-card')).join('')}</div>`+back('Back to Work','work/'));
     }
     if(type==='creative-detail') {
       const set=sets.find(x=>x.slug===slug);if(!set)return renderNotFound(main);
-      const items=(set.media||[]).filter(x=>asset(x.src)&&(asset(x.thumbnail)||(x.type==='image'&&asset(x.src))));
-      const tiles=items.map(x=>{const kind=x.type==='video'?'video':'image';const src=kind==='video'?iframeSafe(x.src)||asset(x.src):asset(x.src);return `<button type="button" class="gallery-item" data-live-gallery-item data-kind="${kind}" data-src="${esc(src)}" data-caption="${esc(x.title||'Visual work')}" aria-label="Open ${esc(x.title||'image')} fullscreen"><img src="${esc(asset(x.thumbnail)||asset(x.src))}" alt="${esc(x.title||'Visual work')}" loading="lazy" style="object-position:${Math.min(100,Math.max(0,Number(x.coverPositionX??50)))}% ${Math.min(100,Math.max(0,Number(x.coverPositionY??50)))}%;--media-zoom:${Math.min(2.5,Math.max(1,Number(x.coverZoom??1)))}">${kind==='video'?'<span class="play-marker" aria-hidden="true">▶</span>':''}<span class="gallery-caption">${esc(x.title||'')}</span></button>`}).join('');
+      const items=(set.media||[]).filter(x=>asset(x.src));
+      const tiles=items.map(x=>{
+        const kind=x.type==='pdf'?'pdf':(x.type==='video'?'video':'image');
+        const src=kind==='video'?iframeSafe(x.src)||asset(x.src):asset(x.src);
+        const image=asset(x.thumbnail)||(kind==='image'?src:'');
+        const frame=image?`<img src="${esc(image)}" alt="${esc(x.title||'Visual work')}" loading="lazy" style="object-position:${Math.min(100,Math.max(0,Number(x.coverPositionX??50)))}% ${Math.min(100,Math.max(0,Number(x.coverPositionY??50)))}%;--media-zoom:${Math.min(2.5,Math.max(1,Number(x.coverZoom??1)))}">`:`<div class="gallery-document-cover" aria-hidden="true"><span>${kind==='pdf'?'PDF':'VIDEO'}</span></div>`;
+        return `<button type="button" class="gallery-item" data-live-gallery-item data-kind="${kind}" data-src="${esc(src)}" data-caption="${esc(x.title||'Visual work')}" aria-label="Open ${esc(x.title||'visual')} fullscreen">${frame}${kind==='video'?'<span class="play-marker" aria-hidden="true">▶</span>':''}${kind==='pdf'?'<span class="document-marker" aria-hidden="true">PDF</span>':''}<span class="gallery-caption">${esc(x.title||'')}</span></button>`;
+      }).join('');
       const gallery=tiles?`<div class="gallery-grid" data-live-gallery>${tiles}</div>`:`<div class="placeholder-panel"><p class="eyebrow">A work in progress</p><h2>More to show soon.</h2><p>This set will hold a mix of images and videos once they've been added.</p></div>`;
       markup=wrap(crumb([['Work','work/'],['Creative Explorations','work/creative-explorations/'],[set.title,null]])+intro('Creative Explorations',esc(set.title),set.subtitle||'',true)+gallery+back('All creative sets','work/creative-explorations/'));
       document.title=set.title+' — Amit Dahan Mayo';
@@ -227,7 +240,8 @@
   let currentContent=null, viewer=null, viewerItems=[],viewerIndex=0,viewerMode='slide',restoreFocus=null;
   function mediaItems(set){
     return (set?.media||[]).map((x,i)=>{
-      const kind=x.type==='video'?'video':'image', src=kind==='video'?(iframeSafe(x.src)||asset(x.src)):asset(x.src);
+      const kind=x.type==='pdf'?'pdf':(x.type==='video'?'video':'image');
+      const src=kind==='video'?(iframeSafe(x.src)||asset(x.src)):asset(x.src);
       const thumb=asset(x.thumbnail)||(kind==='image'?src:'');
       return {kind,src,thumb,title:x.title||`Visual ${i+1}`,crop:x};
     }).filter(x=>x.src);
@@ -258,17 +272,26 @@
       const tiles=document.createElement('div');tiles.className='collection-modal-grid';
       viewerItems.forEach((item,i)=>{
         const btn=document.createElement('button');btn.type='button';btn.className='collection-grid-tile';btn.setAttribute('aria-label','Open '+item.title);
-        if(item.thumb){const img=document.createElement('img');img.src=item.thumb;img.alt=item.title;btn.append(img);}else btn.textContent=item.title;
+        if(item.thumb){const img=document.createElement('img');img.src=item.thumb;img.alt=item.title;btn.append(img);}else{const label=document.createElement('span');label.className='collection-grid-document';label.textContent=item.kind==='pdf'?'PDF':item.title;btn.append(label);}
         btn.onclick=()=>{viewerIndex=i;viewerMode='slide';drawViewer();};tiles.append(btn);
       });stage.append(tiles);viewer.querySelector('.lightbox-bottom').textContent='Select an image or video';return;
     }
-    const item=viewerItems[viewerIndex],node=item.kind==='image'?document.createElement('img'):(/youtube-nocookie\.com\/embed|player\.vimeo\.com\/video|drive\.google\.com\/file\/d\/.+\/preview/.test(item.src)?document.createElement('iframe'):document.createElement('video'));
+    const item=viewerItems[viewerIndex];
+    const caption=viewer.querySelector('.lightbox-bottom');caption.replaceChildren(document.createTextNode(item.title));
+    if(item.kind==='pdf'){
+      const holder=document.createElement('div');holder.className='collection-pdf-holder';
+      const frame=document.createElement('iframe');frame.className='collection-pdf-frame';frame.title=item.title+' — PDF';frame.loading='eager';
+      // A fresh iframe is created when switching documents.
+      frame.src=pdfLink(item.src).embed;holder.append(frame);
+      const open=document.createElement('a');open.href=item.src;open.target='_blank';open.rel='noopener noreferrer';open.className='collection-pdf-open';open.textContent='Open PDF in a new tab ↗';
+      holder.append(open);stage.append(holder);return;
+    }
+    const node=item.kind==='image'?document.createElement('img'):(/youtube-nocookie\.com\/embed|player\.vimeo\.com\/video|drive\.google\.com\/file\/d\/.+\/preview/.test(item.src)?document.createElement('iframe'):document.createElement('video'));
     node.className=item.kind==='image'?'lightbox-media':'lightbox-video';
     if(node.tagName==='IMG')node.alt=item.title;
     if(node.tagName==='IFRAME'){node.title=item.title;node.allow='autoplay; encrypted-media; picture-in-picture';node.allowFullscreen=true;}
     if(node.tagName==='VIDEO'){node.controls=true;node.playsInline=true;}
     node.src=item.src;stage.append(node);
-    const caption=viewer.querySelector('.lightbox-bottom');caption.replaceChildren(document.createTextNode(item.title));
     if(node.tagName==='IFRAME' && item.src.startsWith('https://drive.google.com/')) {
       const link=document.createElement('a');link.href=item.src.replace(/\/preview(?:[?#].*)?$/,'/view');link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open in Google Drive ↗';link.className='drive-fallback-link';caption.append(' · ',link);
     }

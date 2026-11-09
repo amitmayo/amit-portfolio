@@ -114,3 +114,14 @@ textarea.admin-input{resize:vertical;min-height:82px}
 .admin-rich-surface .hero-rich-run[data-hero-color="burgundyDeep"]{color:#944a5c}
 .admin-rich-toolbar .admin-rich-all{min-width:41px;font-size:10px;letter-spacing:.03em}
 .admin-rich-colors button[aria-label="Set text color to Deep burgundy"]{border-color:#d39aab}
+
+/* V9 private analytics panel */
+.admin-pdf-list-badge{font-family:'Courier Prime',monospace;color:#d9a0b1;min-width:40px;font-size:12px;border:1px solid #805164;padding:12px 8px;text-align:center}
+.admin-analytics-choices{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}
+.admin-analytics-choices .active{background:#944a5c;color:#f3eee9;border-color:#944a5c}
+.admin-metrics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0 26px}
+.admin-metric-card{padding:18px 12px;border:1px solid #46353f;background:#262126;display:flex;flex-direction:column;gap:7px}
+.admin-metric-label{font-size:11px;color:#bdafb6}
+.admin-metric-value{font-family:'Newsreader',Georgia,serif;font-size:34px;font-weight:400;color:#f3eee9}
+.admin-analytics-breakdown{margin:24px 0}.admin-metric-row{border-bottom:1px solid #46353f;padding:11px 0;display:flex;align-items:start;justify-content:space-between;gap:12px;font-size:12px;color:#cabdc3;overflow-wrap:anywhere}
+.admin-metric-row strong{font-weight:500;color:#f3eee9;font-variant-numeric:tabular-nums}

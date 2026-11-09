@@ -71,6 +71,10 @@ def nav(active: str, fixed: bool = True) -> str:
     </header>'''
 
 
+def education_notice() -> str:
+    return '<p class="education-notice">'+e('Academic projects displayed here were created for educational and portfolio purposes only. Third-party names, logos, imagery and other materials remain the property of their respective owners. No commercial use, affiliation or endorsement is intended.')+'</p>'
+
+
 def footer() -> str:
     return f'''<footer class="site-footer page-shell">
       <span>© {os.environ.get('COPYRIGHT_YEAR', '2026')} AMIT DAHAN MAYO</span>
@@ -100,6 +104,7 @@ def page(title: str, description: str, body: str, *, active: str = "", homepage:
 <script src="{uri('assets/hero-format.js')}" defer></script>
 <script src="{uri('assets/app.js')}" defer></script>
 <script src="{uri('assets/live.js')}" defer></script>
+<script src="{uri('assets/analytics.js')}" defer></script>
 </body></html>'''
 
 
@@ -181,7 +186,7 @@ def work() -> None:
     targets = {"academic": "work/academic/", "professional": "work/professional/", "creative": "work/creative-explorations/"}
     cards = ''.join(card(sections[key], targets[key], f"0{i} / 03", compact=True) for i, key in enumerate(("academic", "professional", "creative"), 1))
     body = f'''<div class="page-shell content-frame">{section_intro('work')}
-        {list_head('Find your way through', '03 categories')}<div class="tile-grid three">{cards}</div></div>'''
+        {list_head('Find your way through', '03 categories')}<div class="tile-grid three">{cards}</div>{education_notice()}</div>'''
     write("work", page("Work", "Explore Amit's academic work, professional productions, and creative experiments.", body, active="work"))
 
 
@@ -190,7 +195,7 @@ def academic() -> None:
     cards = ''.join(card(p, f"work/academic/{p['slug']}/", f"{i:02d} / {len(projects):02d}") for i, p in enumerate(projects, 1))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work', 'work/'), ('Academic Work', None)])}
     {section_intro('academic', smaller=True)}
-    {list_head('Selected projects', f'{len(projects):02d} projects')}<div class="tile-grid">{cards}</div>{back('Back to Work', 'work/')}</div>'''
+    {list_head('Selected projects', f'{len(projects):02d} projects')}<div class="tile-grid">{cards}</div>{education_notice()}{back('Back to Work', 'work/')}</div>'''
     write("work/academic", page("Academic Work", "Selected academic projects from Istituto Marangoni Milano by Amit Dahan Mayo.", body, active="work"))
 
 
@@ -238,7 +243,7 @@ def academic_project(info: dict) -> None:
     cover = f'''<div class="project-hero-cover"><div class="visual-card-image tone-{e(info.get('tone','clay'))}"{art_style(info)}></div><div class="visual-card-shape"></div><div class="visual-card-shade"></div><span class="cover-label">{e(info['subtitle'])}</span></div>'''
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work', 'work/'), ('Academic Work', 'work/academic/'), (info['title'], None)])}
       {cover}<div class="project-detail-head reveal"><p class="eyebrow">{e(info['subtitle'])}</p><h1 class="display-title small">{e(info['title'])}</h1>
-      <p class="project-description">{e(info['description'])}</p></div>{pdf_viewer(info)}{back('All academic projects', 'work/academic/')}</div>'''
+      <p class="project-description">{e(info['description'])}</p></div>{pdf_viewer(info)}{education_notice()}{back('All academic projects', 'work/academic/')}</div>'''
     write(f"work/academic/{info['slug']}", page(info["title"], info["description"], body, active="work"))
 
 
@@ -299,7 +304,14 @@ def professional_episode(show: dict, ep: dict) -> None:
     if embed:
         player = f'<iframe src="{e(embed)}" title="{e(ep["title"])}" loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>'
     else:
-        player = f'<div class="video-placeholder">{icon("play",50)}<p>The video player will appear here once a YouTube or Vimeo link is added.</p></div>'
+        url = ep.get('video_url', '')
+        parsed = urlparse(url)
+        if parsed.scheme == 'https' and parsed.netloc:
+            kan = parsed.hostname == 'kan.org.il' or (parsed.hostname or '').endswith('.kan.org.il')
+            label = 'Watch on KAN 11' if kan else 'Watch on the original website'
+            player = f'<div class="video-placeholder external-episode"><p>This episode is available from its original publisher.</p><a class="official-watch-link" href="{e(url)}" target="_blank" rel="noopener noreferrer">{label} ↗</a><p class="external-episode-note">Opens the official page in a new tab.</p></div>'
+        else:
+            player = f'<div class="video-placeholder"><p>Add a YouTube, Vimeo, Google Drive or broadcaster link to this episode.</p></div>'
     summary = e(ep.get('description','Selected episode from ' + show['title'] + '.'))
     body = f'''<div class="page-shell content-frame">{breadcrumbs([('Work','work/'),('Professional Work','work/professional/'),(show['title'],f"work/professional/{show['slug']}/"),(ep['title'],None)])}
       {intro(show['title'],e(ep['title']),summary,smaller=True)}<section class="video-embed" aria-label="Episode player">{player}</section>{back('Back to episodes',f"work/professional/{show['slug']}/")}</div>'''
@@ -319,21 +331,16 @@ def creative_collection(coll: dict) -> None:
     media = coll.get('media',[])
     tiles = []
     for i, item in enumerate(media):
-        source = item.get('src','')
-        thumbnail = item.get('thumbnail', source if item.get('type')=='image' else '')
-        if not has_media(thumbnail):
-            # Wait for the creator to add real images. Do not invent media.
+        source = item.get('src', '')
+        if not has_media(source):
             continue
-        kind = 'video' if item.get('type')=='video' else 'image'
-        src = episode_url(source) if kind == 'video' else media_uri(source)
-        if kind=='video' and not src:
-            src = media_uri(source) if has_media(source) else ''
-        if not src:
-            continue
-        title = item.get('title',f'Visual {i+1}')
-        play = f'<span class="play-marker">{icon("play",52)}</span>' if kind=='video' else ''
-        tiles.append(f'''<button type="button" class="gallery-item" data-gallery-item data-kind="{kind}" data-src="{e(src)}" data-caption="{e(title)}" aria-label="Open {e(title)} fullscreen">
-        <img src="{e(media_uri(thumbnail))}" alt="{e(title)}" loading="lazy" style="object-position:{e(item.get('coverPositionX',50))}% {e(item.get('coverPositionY',50))}%;--media-zoom:{e(item.get('coverZoom',1))}">{play}<span class="gallery-caption">{e(title)}</span></button>''')
+        kind = item.get('type') if item.get('type') in ('pdf','video') else 'image'
+        thumbnail = item.get('thumbnail', source if kind == 'image' else '')
+        src = (episode_url(source) or media_uri(source)) if kind == 'video' else media_uri(source)
+        title = item.get('title', f'Visual {i+1}')
+        image = f'<img src="{e(media_uri(thumbnail))}" alt="{e(title)}" loading="lazy">' if has_media(thumbnail) else '<div class="gallery-document-cover"><span>'+ ('PDF' if kind=='pdf' else 'VIDEO') +'</span></div>'
+        marker = '<span class="document-marker">PDF</span>' if kind=='pdf' else ('<span class="play-marker">▶</span>' if kind=='video' else '')
+        tiles.append(f'<button type="button" class="gallery-item" data-live-gallery-item data-kind="{kind}" data-src="{e(src)}" data-caption="{e(title)}" aria-label="Open {e(title)}">{image}{marker}<span class="gallery-caption">{e(title)}</span></button>')
     if not tiles:
         gallery = '''<div class="placeholder-panel"><p class="eyebrow">A work in progress</p><h2>More to show soon.</h2><p>This set will hold a mix of images and videos once they've been added.</p></div>'''
     else:
